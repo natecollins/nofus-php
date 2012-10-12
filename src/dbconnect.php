@@ -15,7 +15,7 @@ permitted provided that the following conditions are met:
 
 THIS SOFTWARE IS PROVIDED BY Nathan Collins ``AS IS'' AND ANY EXPRESS OR IMPLIED
 WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
-FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> OR
+FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL Nathan Collins OR
 CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
 CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
 SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
@@ -69,7 +69,7 @@ class DBConnect {
     private $iQueryCount;      // number of queries run in this instance of this class
     private $sLastQuery;       // the last query that attempted to run
     private $bTransaction;     // whether or not we are running a transaction
-    private $bPersistant;      // whether to establish a persistant connection to the database
+    private $bPersistent;      // whether to establish a persistent connection to the database
     private $cInstance;        // the instance of the PDO connection
 
     /**
@@ -98,7 +98,7 @@ class DBConnect {
         $this->iQueryCount = 0;
         $this->sLastQuery = null;
         $this->bTransaction = false;
-        $this->bPersistant = false;
+        $this->bPersistent = false;
         $this->cInstance = null;
 
         # psudeo verify connection info (vars exist, not empty)
@@ -122,16 +122,16 @@ class DBConnect {
       */
      public function silentErrors($silent=true) {
          if ($this->connectionExists()) {
-             if ($silent == false) {
+            if ($silent == false) {
                  /* Throw exceptions on SQL error */
                 $cInst->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-             }
-             else {
+            }
+            else {
                 /* No exceptions thrown */
                 $cInst->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_SILENT);
-             }
-         }
-     }
+            }
+        }
+    }
 
     /**
      * Check database connection
@@ -174,7 +174,7 @@ class DBConnect {
     }
 
     /**
-     * Enables "load balancing" between all servers in the server array. If using persistant
+     * Enables "load balancing" between all servers in the server array. If using persistent
      *   connections, needs to be called before and query is run.
      *   
      * (In practice, this just randomizes the order of the server array.) 
@@ -186,11 +186,11 @@ class DBConnect {
     /**
      * Set connection peristance; if persistance is changed, then recreate the database connection
      * 
-     * @param boolean $bPersistant If true, the connnection will be persistant; otherwise it will not be
+     * @param boolean $bPersistent If true, the connnection will be persistent; otherwise it will not be
      */
-    public function setPersistantConnection($bPersistant=false) {
-        if ($this->bPersistant != $bPersistant) {
-            $this->bPersistant = $bPersistant;
+    public function setPersistentConnection($bPersistent=false) {
+        if ($this->bPersistent != $bPersistent) {
+            $this->bPersistent = $bPersiseant;
             $this->create(true);
         }
     }
@@ -215,7 +215,7 @@ class DBConnect {
                                 "mysql:host={$aServer['host']};dbname={$aServer['database']}",
                                 $aServer['username'], $aServer['password'],
                                 array(
-                                    PDO::ATTR_PERSISTENT=>$this->bPersistant,
+                                    PDO::ATTR_PERSISTENT=>$this->bPersistent,
                                     PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8"
                                 )
                             );
@@ -641,15 +641,15 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
     }
 
     /**
-     * Start a transaction; this will automatically enable persistant database connections
+     * Start a transaction; this will automatically enable persistent database connections
      * 
      * @param boolean|null $bReadCommitted If set to true, sets transaction isolation to "READ COMMITTED";
      *                                     if false, sets it to "REPEATABLE READ"; if left null, no transaction
      *                                     level is set (MySQL default is "REPEATABLE READ").
      */
     public function startTransaction($bReadCommitted=null) {
-        # enable persistant connections
-        $this->setPersistantConnection(true);
+        # enable persistent connections
+        $this->setPersistentConnection(true);
 
         # create connection if one doesn't exist
         if ( !$this->create() ) return null;
