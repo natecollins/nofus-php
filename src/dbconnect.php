@@ -190,7 +190,7 @@ class DBConnect {
      */
     public function setPersistentConnection($bPersistent=false) {
         if ($this->bPersistent != $bPersistent) {
-            $this->bPersistent = $bPersiseant;
+            $this->bPersistent = $bPersistent;
             $this->create(true);
         }
     }
