@@ -35,9 +35,9 @@ Determines whether or not the database object has an active connection to the da
 		echo "No connection to database";
 	}
 ```
-- _quoteColumn()_
+- ***quoteColumn()***
 > DEPRECATED in favor of escapeIdentifier() (quoteColumn() is 
-> actually just an alias for escapeIdentifier)
+> actually just an alias for escapeIdentifier())
 
 - **escapeIdentifier()**  
 Takes: string  
@@ -47,7 +47,7 @@ Sanitizes an identifier (table or column name) which may have come from an untru
 
 ```php
 	$inColumn = $_GET{"column"};
-	if ($escapeIdentifier($inColumn) != '')
+	if ($db->escapeIdentifier($inColumn) != '')
 	{
 		// the identifier matches either a column or table
 		// it's safe to prepare and run a statement with it
