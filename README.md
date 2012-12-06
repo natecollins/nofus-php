@@ -8,7 +8,7 @@ In the example code below, the DBConnect object has been instantiated as `$db`.
 Public Methods
 --------------
 
-- silentErrors()  
+- **silentErrors()**  
 Takes: boolean  
 Returns: nothing  
 	
@@ -19,7 +19,7 @@ Set whether or not an exception should be thrown on a MySQL error. Takes a boole
 	$db->silentErrors(true); //also disables exceptions on MySQL errors  
 	$db->silentErrors(false); //an exception will be thrown on MySQL errors from this connection  
 ```
-- connectionExists()  
+- **connectionExists()**  
 Takes: nothing  
 Returns: boolean  
 	
@@ -39,7 +39,7 @@ Determines whether or not the database object has an active connection to the da
 > DEPRECATED in favor of escapeIdentifier() (quoteColumn() is 
 > actually just an alias for escapeIdentifier)
 
-- escapeIdentifier()  
+- **escapeIdentifier()**  
 Takes: string  
 Returns: string  
 
