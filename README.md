@@ -12,7 +12,7 @@ Public Methods
 Takes: boolean  
 Returns: nothing  
 	
-Set whether or not an exception should be thrown on a MySQL error. Takes a boolean argument. If called without an argument, the default is to set silent to true. Note that the directive only takes effect if the database handle object has an active connection to the database.
+Set whether or not an exception should be thrown on a MySQL error. Takes a boolean argument. If called without an argument, the default is to set silent to true. Note that the directive only takes effect if the database handle object has an active connection to the database, since rather than setting an instance value in the object it actually sets a PDO attribute of the connection.
 
 ```php
 	$db->silentErrors(); //disables exceptions on MySQL errors  
