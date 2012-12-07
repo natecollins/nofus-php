@@ -100,15 +100,55 @@ Returns: string
 Returns either the IP address or hostname of the currently active connection, depending on which was used to create it. If no connection is active, returns the string "No Connection".
 
 ```php
-	echo $db->getHost(); // returns the string used for the host when the current connection was created
+	echo $db->getHost(); // prints the string used for the host when the current connection was created
 	$db->close(); 
-	echo $db->getHost(); // returns 'No Connection'
+	echo $db->getHost(); // prints 'No Connection'
 ```
 
-- getDatabaseName()
-- quoteSmart()
-- statementReturn()
-- query()
+- **getDatabaseName()**  
+Takes: nothing  
+Returns: string  
+
+Returns the database string that was used when the currently active connection was created. If no connection is active, returns an empty string.
+
+```php
+	echo $db->getDatabaseName(); // prints the database string for the current connection
+	$db->close();
+	echo $db->getDatabaseName(); // prints nothing
+```
+
+- **quoteSmart()**  
+Takes: string  
+Returns: string  
+
+A wrapper for PDO::quote. Returns the given string with proper quoting and escaping for the relevant database engine. Since it requires a PDO object for that, it creates one if one doesn't already exist. If get\_magic\_quotes\_gpc() exists in the global namespace, triggers an error to that effect and exits nonzero. If the string is a number, it is returned unquoted. Otherwise, it is passed through PDO::quote and returned.
+
+```php
+	echo $db->quoteSmart("123"); // prints 123
+	echo $db->quoteSmart("I'm a string"); prints 'I''m a string'
+```
+
+- **statementReturn()**  
+Takes: prepared statement object  
+Returns: string  
+
+A wrapper for PDO::debugDumpParams. Returns the statement, along with any bound parameters, using output buffering.
+
+- **query()**  
+Takes: array (string, [value or array of values], int, [mixed or null])  
+Returns: varies based on type of statement  
+
+Executes a statement (not just a query), given an array containing the statement as a string, then either a single parameter or an array of parameters, and optionally, PDO fetch style and its argument. The return value depends on the type of statement executed:  
+	- SELECT: an array of rows  
+	- INSERT: the primary key for the insert (or NULL if none was returned)  
+	- UPDATE/DELETE: number of rows affected  
+
+```php
+	$sQuery = "SELECT * FROM things WHERE id =?";
+	$aValues = array(1, 3, 5);
+	$db->query($sQuery, $aValues);
+```
+
 - queryRow()
 - queryColumn()
 - queryReturn()
