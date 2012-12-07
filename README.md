@@ -57,10 +57,54 @@ Sanitizes an identifier (table or column name) which may have come from an untru
 		echo "$inColumn is not a valid identifier!"; // possible injection attack
 	}
 ```
-- loadBalance()
-- setPersistentConnection()
-- close()
-- getHost()
+
+- **loadBalance()**  
+Takes: nothing  
+Returns: nothing  
+
+Performs a sort of load balancing by randomizing the array of servers once per call. If persistent connections are used, this needs to be called before every statement. 
+
+```php
+	// $db->aServers addresses are ('mysql1', 'mysql2', 'mysql3')
+	$db->loadBalance();
+	// $db->aServers addresses are now ('mysql3', 'mysql1', 'mysql2')
+```
+
+- **setPersistentConnection()**  
+Takes: boolean  
+Returns: nothing  
+
+Sets or disables persistent database connections for the object. If called with no argument, the default is false. If the current connection state is the same as the argument given, does nothing. If the current connection state differs from the argument, the connection persistence is toggled, and the object is recreated.
+
+```php
+	$db->setPersistentConnection(); // set persistence to false (if it isn't already)
+	$db->setPersistentConnection(false); // set persistence to false (if it isn't already)
+	$db->setPersistentConnection(true); // set persistence to true (if it isn't already)
+	// if the persistence state is changed, the $db object will be recreated
+```
+
+- **close()**  
+Takes: nothing  
+Returns: nothing  
+
+Closes the PDO object.
+
+```php
+	$db->close(); // sets the PDO object to null
+```
+
+- **getHost()**  
+Takes: nothing  
+Returns: string  
+
+Returns either the IP address or hostname of the currently active connection, depending on which was used to create it. If no connection is active, returns the string "No Connection".
+
+```php
+	echo $db->getHost(); // returns the string used for the host when the current connection was created
+	$db->close(); 
+	echo $db->getHost(); // returns 'No Connection'
+```
+
 - getDatabaseName()
 - quoteSmart()
 - statementReturn()
