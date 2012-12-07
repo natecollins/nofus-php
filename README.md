@@ -125,7 +125,7 @@ A wrapper for PDO::quote. Returns the given string with proper quoting and escap
 
 ```php
 	echo $db->quoteSmart("123"); // prints 123
-	echo $db->quoteSmart("I'm a string"); prints 'I''m a string'
+	echo $db->quoteSmart("I'm a string"); // prints 'I''m a string'
 ```
 
 - **statementReturn()**  
@@ -135,10 +135,10 @@ Returns: string
 A wrapper for PDO::debugDumpParams. Returns the statement, along with any bound parameters, using output buffering.
 
 - **query()**  
-Takes: array (string, [value or array of values], int, [mixed or null])  
+Takes: array (string, optional [value or array of values], optional int, optional [mixed or null])  
 Returns: varies based on type of statement  
 
-Executes a statement (not just a query), given an array containing the statement as a string, then either a single parameter or an array of parameters, and optionally, PDO fetch style and its argument. The return value depends on the type of statement executed:  
+Executes a statement (not just a query), given an array containing the statement as a string, then either a single parameter or an array of parameters (if needed), and optionally, PDO fetch style and its argument. The return value depends on the type of statement executed:  
 	- SELECT: an array of rows  
 	- INSERT: the primary key for the insert (or NULL if none was returned)  
 	- UPDATE/DELETE: number of rows affected  
@@ -149,9 +149,25 @@ Executes a statement (not just a query), given an array containing the statement
 	$db->query($sQuery, $aValues);
 ```
 
-- queryRow()
-- queryColumn()
-- queryReturn()
+- **queryRow()**  
+Takes: string (statement), array (params)  
+Returns: array  
+
+Executes a statement and returns the first row as an array. Triggers an error if no rows are returned, so should only be used for queries that are expected to return at least one row.
+
+- **queryColumn()**  
+Takes: string (statement), array (params), int (column index)  
+Returns: array  
+
+Given a column index, returns all values for that column that are returned by the statement. If no column index is passed, the first column is returned.
+
+- **queryReturn()**  
+Takes: string (statement), array (params), boolean  
+Returns: string  
+
+Returns a string representing the statement as it would be run if it were passed into query() with the given params, but does not actually execute the statement. Primarily used for debugging purposes to see how the params would be executed. It is possible that the returned statement may differ from the statement as it would be executed. The third argument is a boolean which determines if the notice "**[WARNING] This only EMULATES what the prepared statement will run.**" preceeding the return is suppressed (default is false, pass true to suppress the warning).
+
+
 - queryDump()
 - enumValues()
 - getTables()
