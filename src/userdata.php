@@ -169,15 +169,37 @@ class UserData {
     }
 
     public function getString($sDefault=null) {
+        // if exists and is not an array, return as string
     }
 
     public function getInteger($iDefault=null) {
+        $iVal = $iDefault;
+        if (is_numeric($this->getValue())) {
+            $iVal = intval($this->getValue());
+        }
+        return $iVal;
     }
 
+    /**
+     * Get a floating point representation of the loaded user data.
+     * If not a floating point, or if NaN, or if infinite, then returns fDefault
+     * 
+     * @param string $fDefault The default to return if value is not a float
+     * @return float|null The float value or null
+     */
     public function getFloat($fDefault=null) {
+        $fVal = $fDefault;
+        if (is_numeric($this->getValue())) {
+            $fTempVal = floatval($this->getValue());
+            if (!is_nan($fVal) && is_finite($fVal)) {
+                $fVal = $fTempVal;
+            }
+        }
+        return $iVal;
     }
 
     public function getArray($aDefault=null) {
+        // if value is array, return it, otherwise return default 
     }
 
     public function getFiles() {
