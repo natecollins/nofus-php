@@ -1,5 +1,50 @@
 web-utilities
-=============
+==============
+
+Web-utilities is a set of simple-to-use tools designed to deal with some of the standard headaches when web programming with PHP. Each tool can be used independently of the rest.
+
+DBConnect
+--------------
+A class to handle MySQL compatible database connections. Features include:
+
+  - Automatic failover between multiple servers
+  - Safe escaping of data via prepared statements
+  - Based off PDO extension
+  - Query tracking
+  - Query construction emulation (for debugging)
+  - Safe escaping of user supplied table and column names
+
+**Examples:**
+```php
+$sql_servers = array(
+    array(
+        'host'=>'primarymysql.example.com',
+        'username'=>'my_user',
+        'password'=>'my_pw',
+        'database'=>'my_db'
+    ),
+    array(
+        'host'=>'secondarymysql.example.com',
+        'username'=>'my_user',
+        'password'=>'my_pw',
+        'database'=>'my_db'
+    )
+);
+
+$dbc = new DBConnect($sql_servers);
+
+$query = "SELECT firstname, lastname FROM users WHERE age > ?";
+$values = array(21);
+
+$names = $dbc->query($query, $values);
+
+foreach ($names as $row) {
+    echo "{$row['lastname']}, {$row['firstname']}";
+}
+```
+
+
+
 
 __Utility Classes for Web Development__  
 In the example code below, the DBConnect object has been instantiated as `$db`.
@@ -167,21 +212,46 @@ Returns: string
 
 Returns a string representing the statement as it would be run if it were passed into query() with the given params, but does not actually execute the statement. Primarily used for debugging purposes to see how the params would be executed. It is possible that the returned statement may differ from the statement as it would be executed. The third argument is a boolean which determines if the notice "**[WARNING] This only EMULATES what the prepared statement will run.**" preceeding the return is suppressed (default is false, pass true to suppress the warning).
 
+- **queryDump()**
+Takes: string (statement), array (params), boolean  
+Returns: string  
 
-- queryDump()
-- enumValues()
-- getTables()
-- getAllColumns()
-- getTableColumns()
-- startTransaction()
-- commitTransaction()
-- rollbackTransaction()
-- getQueryCount()
-- getLast()
+Prints out into a HTML stream a string representing the statement as it would be run if it were passed into query() with the given params, but does not actually execute the statement. Primarily used for debugging purposes to see how the params would be executed. It is possible that the returned statement may differ from the statement as it would be executed. The third argument is a boolean which determines if the notice "**[WARNING] This only EMULATES what the prepared statement will run.**" preceeding the return is suppressed (default is false, pass true to suppress the warning).
+
+- **enumValues()**
+Takes: string (table name), string (column name)
+Returns: array
+
+Queries the database to retrieve all possible values for an enum of a specified table and column. Returns an array containing these values.
+
+- **getTables()**
+Takes: nothing
+Returns: array
+
+Queries the database for a listing of all available tables. Return the tables names in an array.
+
+- **getAllColumns()**
+Takes: nothing
+Returns: array
+
+Queries all tables for all their column names. Returns these column names as an array.
+PERFORMANCE NOTE: This function only queries the database the FIRST time it is used. After which it remembers the columns and doesn't bother re-querying the database on subsequent calls.
+
+- **getTableColumns()**
+Takes: string (table name, optional)
+Returns: array
+
+Queries the database for information on columns from a given table. If no table is specified, then it queries all tables for column info. It returns columns info cordered by ordinal position. Currently, this function only returns: 'name' (string), 'is_nullable' (bool), 'is_autokey' (bool)
+
+- **startTransaction()**
+- **commitTransaction()**
+- **rollbackTransaction()**
+- **getQueryCount()**
+- **getLast()**
 
 Private Methods
 ---------------
 
-- create()
-- expandValueLocation()
-- recordQuery()
+- **create()**
+- **expandValueLocation()**
+- **recordQuery()**
