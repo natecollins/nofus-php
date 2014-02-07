@@ -15,18 +15,24 @@ class UserData {
     private $vMinRange;
     private $vMaxRange;
     private $sRangeCompare;
+    private $bTrimWhitespace;
+    // Errors
+    private $aErrors;
 
     function __construct($sVarName, $sMethod="either") {
         if (function_exists('get_magic_quotes_gpc') && get_magic_quotes_gpc())
             trigger_error('Please disable magic quotes.');
         $this->setName($sVarName);
         $this->setMethod($sMethod);
+        $this->vValue = null;
         $this->aAllowed = array();
         $this->iLengthMin = -1;
         $this->iLengthMax = -1;
         $this->vMinRange = -1;
         $this->vMaxRange = -1;
         $this->sRangeCompare = 'numeric';
+        $this->bTrimWhitespace = true;
+        $this->aErrors = array();
     }
 
     private function setName($sVarName) {
@@ -41,8 +47,39 @@ class UserData {
         $this->sMethod = $sMethod;
     }
 
+    /**
+     * Retrieve data from method (GET/POST) and set the UserData object's value.
+     * The value will be null if the key sVarName for the method doesn't exist.
+     */
+    private function retrieveFromMethod() {
+        $vParseValue = null;
+        # check POST
+        if ( $this->sMethod !== "get" && isset($_POST[$this->sVarName]) ) {
+            $vParseValue = $_POST[$this->sVarName];
+        }
+        # check GET
+        elseif ( $this->sMethod !== "post" && isset($_GET[$this->sVarName]) ) {
+            $vParseValue = $_GET[$this->sVarName];
+        }
+
+        setValue($vParseValue);
+    }
+
     private function setValue($vValue) {
-        $this->vValue = trim($svValue);
+        # Trim data of whitespace
+        if ($this->bTrimWhitespace == true) {
+            if (is_array($vValue)) {
+                foreach (array_keys($vValue) as $key) {
+                    $vValue[$key] = trim("{$vValue[$key]}");
+                }
+            }
+            else {
+                $vValue = trim("{$svValue}");
+            }
+        }
+        # Set value
+        $this->vValue = $vValue;
+        # Enforce rules
         $this->enforceAllowedRange();
         $this->enforceLengthLimits();
         $this->enforceAllowedValues();
@@ -151,21 +188,44 @@ class UserData {
         $this->iLengthMin = $iMinimum;
         $this->iLengthMax = $iMaximum;
     }
-    
+
+    /**
+     * Returns the length of the value as a string length.
+     * @return int
+     */
     public function getLength() {
-        $sLenCheck = "{$this->vValue}";
-        return strlen($sLenCheck);
+        $iLenCheck = 0;
+        if (is_array($this->vValue)) {
+            $this-aErrors[] = "Cannot getLength() on type array().";
+        }
+        else {
+            $iLenCheck = strlen("{$this->vValue}");
+        }
+        return $iLenCheck;
     }
-    
+   
+    /**
+     * Check if length of value is within allowed range.
+     * @return boolean True if length of value is permissible, false otherwise
+     */ 
     public function checkLengthLimits() {
-        $iLength = $this->getLength();
-        if (($this->iLengthMin >= 0 && $iLength < $this->iLengthMin) || $iLength > $this->iLengthMax) {
-            return false;
+        if (is_array($this->vValue)) {
+            //TODO array handling?
+        }
+        else {
+            $iLength = $this->getLength();
+            if (($this->iLengthMin >= 0 && $iLength < $this->iLengthMin) || $iLength > $this->iLengthMax) {
+                return false;
+            }
         }
         return true;
     }
-    
+   
+    /**
+     * 
+     */ 
     public function enforceLengthLimits($bTruncate=true) {
+        //
     }
 
     public function getString($sDefault=null) {
@@ -185,7 +245,7 @@ class UserData {
      * If not a floating point, or if NaN, or if infinite, then returns fDefault
      * 
      * @param string $fDefault The default to return if value is not a float
-     * @return float|null The float value or null
+     * @return float|null The float value or fDefault (which defaults to null)
      */
     public function getFloat($fDefault=null) {
         $fVal = $fDefault;
@@ -214,14 +274,43 @@ class UserData {
     public function fileExists() {
     }
 
+    /**
+     * Checks if the value for this data is empty()
+     * @return bool True if value is empty(); false otherwise
+     */
     public function isEmpty() {
     }
 
+    /**
+     * Checks if any errors have occurred while processing the input.
+     * @return bool True if any errors happened, false otherwise
+     */
+    public function hasErrors() {
+        return (count($this->aErrors) > 0);
+    }
+
+    /**
+     * Get an array containing all errors that happened while processing input
+     * @return array An array of strings contianing the error messages; may be empty.
+     */
+    public function getErrrors() {
+        return $this->aErrors;
+    }
+
+    /**
+     * Check all arguments to this function to ensure they are not set to null
+     * @params unknown
+     * @return bool False if any argument is null, true otherwise 
+     */
     public static function exists() {
         $aArgs = func_get_args();
     }
 
-    public static function isEmpty() {
+    /**
+     * Checks all arguments to this function to ensure they are not empty() (PHP function)
+     * @return bool True if ALL arguments are not empty(); false otherwise
+     */
+    public static function notEmpty() {
         $aArgs = func_get_args();
     }
 }
