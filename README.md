@@ -107,8 +107,9 @@ Sanitizes an identifier (table or column name) which may have come from an untru
 Takes: nothing  
 Returns: nothing  
 
-Performs a sort of load balancing by randomizing the array of servers once per call. If persistent connections are used, this needs to be called before every statement. 
+Performs a sort of load balancing by randomizing the array of servers once per call. 
 
+Possible example:
 ```php
 	// $db->aServers addresses are ('mysql1', 'mysql2', 'mysql3')
 	$db->loadBalance();
@@ -120,13 +121,6 @@ Takes: boolean
 Returns: nothing  
 
 Sets or disables persistent database connections for the object. If called with no argument, the default is false. If the current connection state is the same as the argument given, does nothing. If the current connection state differs from the argument, the connection persistence is toggled, and the object is recreated.
-
-```php
-	$db->setPersistentConnection(); // set persistence to false (if it isn't already)
-	$db->setPersistentConnection(false); // set persistence to false (if it isn't already)
-	$db->setPersistentConnection(true); // set persistence to true (if it isn't already)
-	// if the persistence state is changed, the $db object will be recreated
-```
 
 - **close()**  
 Takes: nothing  
@@ -180,19 +174,58 @@ Returns: string
 A wrapper for PDO::debugDumpParams. Returns the statement, along with any bound parameters, using output buffering.
 
 - **query()**  
-Takes: array (string, optional [value or array of values], optional int, optional [mixed or null])  
+Takes: string(statement), optional array(params), optional int(fetchtype), optional [mixed or null], optional boolean(fetchall)
 Returns: varies based on type of statement  
 
-Executes a statement (not just a query), given an array containing the statement as a string, then either a single parameter or an array of parameters (if needed), and optionally, PDO fetch style and its argument. The return value depends on the type of statement executed:  
-	- SELECT: an array of rows  
+Executes a statement, given the statement as a string and an array of parameters (if needed). Returns all matching rows as an array of arrays. For retrieving very large result sets, see queryLoop()/queryNext().
+
+The return value depends on the type of statement executed:  
+	- SELECT: an array of rows (empty array if there were no rows)
 	- INSERT: the primary key for the insert (or NULL if none was returned)  
-	- UPDATE/DELETE: number of rows affected  
+	- UPDATE/DELETE/REPLACE: number of rows affected  
+
+Examples:
+```php
+    $sQuery = "SELECT name,age FROM users WHERE hair_color = ?";
+    $aValues = array("brown");
+```
+```php
+    $sQuery = "SELECT name,age FROM users WHERE hair_color = :hair";
+    $aValues = array(":hair"=>"brown");
+```
+
+Note: If you use '?' to identify variable positions, you MAY pass an array as a value, and it will be expanded and comma delimited.
+For example, this query:
+```php
+    $sQuery = "SELECT name,age FROM users WHERE hair_color IN (?) AND age > ?";
+    $aValues = array(array("brown","red","black"),20);
+```
+Would translate into:
+```php
+    $sQuery = "SELECT name,age FROM users WHERE hair_color IN (?,?,?) AND age > ?";
+    $aValues = array("brown","red","black",20);
+```
+
+- **queryLoop()**  
+Takes: string (statement), array (params)
+Returns: nothing 
+
+Executes a statement, but returns nothing. Retrieval of rows is expected to be done using queryNext().
 
 ```php
-	$sQuery = "SELECT * FROM things WHERE id =?";
-	$aValues = array(1, 3, 5);
-	$db->query($sQuery, $aValues);
+    $sQuery = "SELECT name, address FROM phonebook WHERE state = ?";
+    $aValues = array("Michigan");
+    $dbc->queryLoop($sQuery,$aValues);
+    while ($aRow = $dbc->queryNext()) {
+        echo "{$aRow['name']} lives at {$aRow['address']}" . PHP_EOL;
+    } 
 ```
+
+- **queryNext()**  
+Takes: optional int(fetchtype)
+Returns: array OR false
+
+Retrieves the next row from a previously called queryLoop() as an array. If no more rows are available, it returns false. See queryLoop().
 
 - **queryRow()**  
 Takes: string (statement), array (params)  
@@ -244,10 +277,35 @@ Returns: array
 Queries the database for information on columns from a given table. If no table is specified, then it queries all tables for column info. It returns columns info cordered by ordinal position. Currently, this function only returns: 'name' (string), 'is_nullable' (bool), 'is_autokey' (bool)
 
 - **startTransaction()**
+Takes: boolean|null (optional)
+Returns: nothing
+
+Start a transaction. Optionally, can pass a boolean to set the transaction isolation. If set to true, sets transaction isolation to "READ COMMITTED"; if false, sets it to "REPEATABLE READ"; if left null, no transaction level is set (MySQL default is "REPEATABLE READ").
+
 - **commitTransaction()**
+Takes: nothing
+Returns: nothing
+
+Commits a previously started transaction to the database.
+
 - **rollbackTransaction()**
+Takes: nothing
+Returns: boolean
+
+Attempts to rollback a previously started transaction. Returns false if there was no previously started transaction, or true otherwise.
+
 - **getQueryCount()**
+Takes: nothing
+Returns: int
+
+Return the number of queries run since this object was created.
+
 - **getLast()**
+Takes: nothing
+Returns: string
+
+Returns a dump of the last query run; if last query was part of a transaction, then returns a dump of all queries run since the transaction was started.
+
 
 Private Methods
 ---------------

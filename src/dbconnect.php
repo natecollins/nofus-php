@@ -176,9 +176,8 @@ class DBConnect {
     }
 
     /**
-     * Enables "load balancing" between all servers in the server array. If using persistent
-     *   connections, needs to be called before and query is run.
-     *   
+     * Enables "load balancing" between all servers in the server array.
+     *
      * (In practice, this just randomizes the order of the server array.) 
      */
     public function loadBalance() {
@@ -469,6 +468,14 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
     /**
      * Executes a SELECT query for use with queryNext(). Does not return any query data; all rows are to be
      * retrieved with queryNext()
+     * Example:
+     *     $sQuery = "SELECT name, address FROM phonebook WHERE state = ?";
+     *     $aValues = array("Michigan");
+     *     $dbc->queryLoop($sQuery,$aValues);
+     *     while ($aRow = $dbc->queryNext()) {
+     *         echo "{$aRow['name']} lives at {$aRow['address']}" . PHP_EOL;
+     *     }
+     *
      * @param string $sQuery String query with ? placeholders for linearly inserted values, or :name placeholders for associative values
      * @param array $aValues Array of values to be escaped and inserted into the query
      */
@@ -479,7 +486,7 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
     /**
      * Returns one row from a SELECT query as an array(), starting with the first row. Each sequential call
      * to queryNext() will return the next row from the results. If no more rows are available, the null
-     * is returned
+     * is returned. See queryLoop() for example.
      * @return array|false A row from the query as an array, or boolean false if no more rows are left.
      */
     public function queryNext($iFetchStyle=PDO::FETCH_ASSOC) {
@@ -673,16 +680,13 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
     }
 
     /**
-     * Start a transaction; this will automatically enable persistent database connections
+     * Start a transaction.
      * 
      * @param boolean|null $bReadCommitted If set to true, sets transaction isolation to "READ COMMITTED";
      *                                     if false, sets it to "REPEATABLE READ"; if left null, no transaction
      *                                     level is set (MySQL default is "REPEATABLE READ").
      */
     public function startTransaction($bReadCommitted=null) {
-        # enable persistent connections
-        $this->setPersistentConnection(true);
-
         # create connection if one doesn't exist
         if ( !$this->create() ) return null;
 
