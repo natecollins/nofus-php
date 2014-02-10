@@ -71,6 +71,7 @@ class DBConnect {
     private $bTransaction;     // whether or not we are running a transaction
     private $bPersistent;      // whether to establish a persistent connection to the database
     private $cInstance;        // the instance of the PDO connection
+    private $cStatement;       // the current statement (needed for queryLoop()/queryNext())
 
     /**
      * Constructor requires valid MySQL connection server(s) in an array.
@@ -100,6 +101,7 @@ class DBConnect {
         $this->bTransaction = false;
         $this->bPersistent = false;
         $this->cInstance = null;
+        $this->cStatement = null;
 
         # psudeo verify connection info (vars exist, not empty)
         if (is_array($conn_info)) {
@@ -174,9 +176,8 @@ class DBConnect {
     }
 
     /**
-     * Enables "load balancing" between all servers in the server array. If using persistent
-     *   connections, needs to be called before and query is run.
-     *   
+     * Enables "load balancing" between all servers in the server array.
+     *
      * (In practice, this just randomizes the order of the server array.) 
      */
     public function loadBalance() {
@@ -230,6 +231,7 @@ class DBConnect {
                 }
                 $this->iServerIndex = $i;
                 $this->cInstance = $cInst;
+                $this->cStatement = null;
                 /* Connection created */
                 return true;
             }
@@ -274,6 +276,7 @@ class DBConnect {
      * @param mixed $xValue A value to escape
      * @return mixed The value escaped by the connection instance 
      */
+
     public function quoteSmart($xValue) {
         # create connection if one doesn't exist
         if ( !$this->create() ) return null;
@@ -293,6 +296,7 @@ class DBConnect {
         if ( !(is_int($xValue) || is_float($xValue)) ) {
             $xValue = $this->cInstance->quote($xValue);
         }
+
         return $xValue;
     }
 
@@ -345,7 +349,8 @@ class DBConnect {
     }
 
     /**
-     * Perform a query. Examples:
+     * Perform a query. Will return all the rows at once for SELECT. For very large datasets, see queryLoop()/queryNext().
+     * Examples:
      *     $sQuery = "SELECT name,age FROM users WHERE hair_color = ?";
      *     $aValues = array("brown");
      *     $sQuery = "SELECT name,age FROM users WHERE hair_color = :hair";
@@ -362,15 +367,16 @@ class DBConnect {
      * @param string $sQuery String query with ? placeholders for linearly inserted values, or :name placeholders for associative values
      * @param array $aValues Array of values to be escaped and inserted into the query
      * @param int $iFetchStyle The PDO fetch style to query using
-     * @param mixed $vFetchArg Additional argument to pass if the fetch style requires it 
-     * @return array An array of rows for SELECT; primary key for INSERT (NULL is none returned); number of rows affected for UPDATE/DELETE.
+     * @param mixed $vFetchArg Additional argument to pass if the fetch style requires it
+     * @param boolean $bFetchAll If true, all rows from a SELECT will be returned; if false, no rows will be returned (see queryNext())
+     * @return array An array of rows for SELECT; primary key for INSERT (NULL is none returned); number of rows affected for UPDATE/DELETE/REPLACE.
      */
-    public function query( $sQuery, $aValues=array(), $iFetchStyle=PDO::FETCH_ASSOC, $vFetchArg=null ) {
+    public function query( $sQuery, $aValues=array(), $iFetchStyle=PDO::FETCH_ASSOC, $vFetchArg=null, $bFetchAll=true ) {
         $this->iQueryCount += 1;
         
         # query type
         $bIsInsert = preg_match('/^\s*INSERT/i',$sQuery);
-        $bIsUpdateDelete = preg_match('/^\s*(UPDATE|DELETE)/i',$sQuery);
+        $bIsUpdateDelete = preg_match('/^\s*(UPDATE|REPLACE|DELETE)/i',$sQuery);
 
         # the array where the rows are to be stored
         $aRows = array();
@@ -379,7 +385,7 @@ class DBConnect {
         if ( !$this->create() ) return null;
 
         # perform the query
-        $cStatement = null;
+        $this->cStatement = null;
         $aRows = array();
         try {
             // Catch Array Values and Expand them
@@ -396,22 +402,25 @@ class DBConnect {
             $aValues = $aExpandedValues;
 
             // Execute Query
-            $cStatement = $this->cInstance->prepare($sQuery);
-            if ($cStatement == false) trigger_error("SQL Error: Could not prepare query. Query is not valid or references something non-existant.");
-            $cStatement->execute($aValues);
-            
-            /* Fetch rows, if this isn't a select/insert/update/delete */
-            if (!($bIsInsert || $bIsUpdateDelete)) {
-                if ($vFetchArg === null) {
-                    $aRows = $cStatement->fetchAll($iFetchStyle);
+            $this->cStatement = $this->cInstance->prepare($sQuery);
+            if ($this->cStatement == false) trigger_error("SQL Error: Could not prepare query. Query is not valid or references something non-existant.");
+            $this->cStatement->execute($aValues);
+
+            // Only fetch rows if requested
+            if ($bFetchAll == true) {
+                /* Fetch rows, if this isn't a select/insert/update/delete */
+                if (!($bIsInsert || $bIsUpdateDelete)) {
+                    if ($vFetchArg === null) {
+                        $aRows = $this->cStatement->fetchAll($iFetchStyle);
+                    }
+                    else $aRows = $this->cStatement->fetchAll($iFetchStyle, $vFetchArg);
                 }
-                else $aRows = $cStatement->fetchAll($iFetchStyle, $vFetchArg);
-            } 
+            }
         }
         catch (PDOException $e) {
             $this->rollbackTransaction();
-            $aError = $cStatement->errorInfo();
-?>            
+            $aError = $this->cStatement->errorInfo();
+?>
 ============================================================
 MySQL Error Details
 Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
@@ -419,15 +428,16 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
 <?
             echo $this->queryReturn($sQuery,$aValues,true);
             echo PHP_EOL;
-            echo $this->statementReturn($cStatement);
+            echo $this->statementReturn($this->cStatement);
 ?>
 
 ============================================================
 <?
-            $this->recordQuery($cStatement);
+            $this->recordQuery($this->cStatement);
+
             trigger_error("Query Failed ({$aError[1]}): {$aError[2]}");
         }
-        $this->recordQuery($cStatement);
+        $this->recordQuery($this->cStatement);
 
         # pull AUTO_INCREMENT id if previous query was INSERT
         if ( $bIsInsert ) {
@@ -442,7 +452,7 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
 
         # pull rows affected count if query was UPDATE/etc
         if ( $bIsUpdateDelete ) {
-            $iChangeCount = $cStatement->rowCount();
+            $iChangeCount = $this->cStatement->rowCount();
 
             # if count was pulled, return it
             if ( is_numeric($iChangeCount) and $iChangeCount >= 0 ) {
@@ -452,6 +462,35 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
         }
 
         return $aRows;
+    }
+
+    
+    /**
+     * Executes a SELECT query for use with queryNext(). Does not return any query data; all rows are to be
+     * retrieved with queryNext()
+     * Example:
+     *     $sQuery = "SELECT name, address FROM phonebook WHERE state = ?";
+     *     $aValues = array("Michigan");
+     *     $dbc->queryLoop($sQuery,$aValues);
+     *     while ($aRow = $dbc->queryNext()) {
+     *         echo "{$aRow['name']} lives at {$aRow['address']}" . PHP_EOL;
+     *     }
+     *
+     * @param string $sQuery String query with ? placeholders for linearly inserted values, or :name placeholders for associative values
+     * @param array $aValues Array of values to be escaped and inserted into the query
+     */
+    public function queryLoop($sQuery, $aValues=array()) {
+        $this->query($sQuery, $aValues, PDO::FETCH_ASSOC, null, false);
+    }
+
+    /**
+     * Returns one row from a SELECT query as an array(), starting with the first row. Each sequential call
+     * to queryNext() will return the next row from the results. If no more rows are available, the null
+     * is returned. See queryLoop() for example.
+     * @return array|false A row from the query as an array, or boolean false if no more rows are left.
+     */
+    public function queryNext($iFetchStyle=PDO::FETCH_ASSOC) {
+        return $this->cStatement->fetch($iFetchStyle);
     }
 
     /**
@@ -641,16 +680,13 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
     }
 
     /**
-     * Start a transaction; this will automatically enable persistent database connections
+     * Start a transaction.
      * 
      * @param boolean|null $bReadCommitted If set to true, sets transaction isolation to "READ COMMITTED";
      *                                     if false, sets it to "REPEATABLE READ"; if left null, no transaction
      *                                     level is set (MySQL default is "REPEATABLE READ").
      */
     public function startTransaction($bReadCommitted=null) {
-        # enable persistent connections
-        $this->setPersistentConnection(true);
-
         # create connection if one doesn't exist
         if ( !$this->create() ) return null;
 
