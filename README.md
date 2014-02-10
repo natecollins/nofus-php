@@ -44,8 +44,6 @@ foreach ($names as $row) {
 ```
 
 
-
-
 __Utility Classes for Web Development__  
 In the example code below, the DBConnect object has been instantiated as `$db`.
 
@@ -313,3 +311,15 @@ Private Methods
 - **create()**
 - **expandValueLocation()**
 - **recordQuery()**
+
+
+UserData
+--------------
+A class to handle parsing and limitations on suspicious data.
+
+  - Set rules prior to parsing user data, rejecting violations.
+  - Can return a list of human readable violations.
+  - Works with strings, integers, floats, arrays, and files.
+
+- **WORK IN PROGRESS**
+
