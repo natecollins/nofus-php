@@ -204,6 +204,14 @@ Would translate into:
     $aValues = array("brown","red","black",20);
 ```
 
+For queries with only a single value, you may pass the value directly
+```php
+    $sQuery = "SELECT name,age FROM users WHERE hair_color = ?";
+    $aValues = "brown";
+```
+
+
+
 - **queryLoop()**  
 Takes: string (statement), array (params)
 Returns: nothing 

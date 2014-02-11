@@ -50,6 +50,10 @@ function dbauth() {
 }
 */
 
+# Include guard, for people who can't remember to use '_once'
+if (!defined('__DBCONNECT_GUARD__')) {
+    define('__DBCONNECT_GUARD__',true);
+
 /**
  *  A wrapper class for MySQL PDO connections.
  *  Provides:
@@ -364,8 +368,12 @@ class DBConnect {
      *     $sQuery = "SELECT name,age FROM users WHERE hair_color IN (?,?,?) AND age > ?";
      *     $aValues = array("brown","red","black",20);
      *
+     * For queries with only a single value, you may pass the value directly
+     *     $sQuery = "SELECT name,age FROM users WHERE hair_color = ?";
+     *     $aValues = "brown";
+     *
      * @param string $sQuery String query with ? placeholders for linearly inserted values, or :name placeholders for associative values
-     * @param array $aValues Array of values to be escaped and inserted into the query
+     * @param array|mixed $aValues Array of values to be escaped and inserted into the query
      * @param int $iFetchStyle The PDO fetch style to query using
      * @param mixed $vFetchArg Additional argument to pass if the fetch style requires it
      * @param boolean $bFetchAll If true, all rows from a SELECT will be returned; if false, no rows will be returned (see queryNext())
@@ -388,6 +396,11 @@ class DBConnect {
         $this->cStatement = null;
         $aRows = array();
         try {
+            // If value was passed directly (for single value queries), place it into an array
+            if (!is_array($aValues)) {
+                $aValues = array($aValues);
+            }
+
             // Catch Array Values and Expand them
             $aExpandedValues = array();
             for ($i=0; $i<count($aValues); $i++) {
@@ -747,5 +760,7 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
     }
 
 }
+
+} // Include guard end
 
 ?>
