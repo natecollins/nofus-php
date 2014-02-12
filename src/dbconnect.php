@@ -518,21 +518,21 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
     }
 
     /**
-     * Returns only the first row from the query; throws error if no rows were returned.
-     * Should be used only where the query guarantees a result of at least 1 row.  
+     * Returns only the first row from the query; when using default arguments, will throw an error if no rows were returned.
      * 
      * @param string $sQuery The query to run
      * @param array $aValues The values the query is to use
-     * @return array The first row of the results of the query
+     * @param boolean $bRequireRow If set to true (the default), queryRow() will throw an E_USER_ERROR if query didn't match at least one row.
+     * @return array|null The first row of the results of the query; if query found no rows, null may be returned.
      */
-    public function queryRow( $sQuery, $aValues=array() ) {
+    public function queryRow( $sQuery, $aValues=array(), $bRequireRow=true) {
         $aArray = $this->query($sQuery,$aValues);
-        $aRow = array();
-        if ( is_array($aArray) and count($aArray) > 0 ) {
+        $aRow = null;
+        if ( is_array($aArray) && count($aArray) > 0 ) {
             $aRow = array_shift($aArray);
         }
-        else {
-            trigger_error("SQL Query returned no rows from query where one row was required");
+        elseif ($bRequireRow) {
+            trigger_error("DBConnect Error: SQL query returned no rows when at least one row was required.", E_USER_ERROR);
         }
         return $aRow;
     }

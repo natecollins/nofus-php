@@ -243,10 +243,27 @@ Returns: array OR false
 Retrieves the next row from a previously called queryLoop() as an array. If no more rows are available, it returns false. See queryLoop().
 
 - **queryRow()**  
-Takes: string (statement), array (params)  
+Takes: string (statement), array (params), boolean (require row, default: true)  
 Returns: array  
 
-Executes a statement and returns the first row as an array. Triggers an error if no rows are returned, so should only be used for queries that are expected to return at least one row.
+Executes a statement and returns the first row as an array. If third arguement is 'true' (the default), will trigger an E_USER_ERROR if no rows are returned.
+
+```php
+    // Assuming an 'id' of 33 exists
+    $sQuery = "SELECT name FROM users WHERE id = ?";
+    $aValues = array(33);
+    $aRow = $db->queryRow($sQuery,$aValues);
+
+    echo $aRow['name'] . PHP_EOL;
+```
+
+```php
+    // Assuming 'id' of 123 does not exist
+    $sQuery = "SELECT name FROM users WHERE id = ?";
+    $aValues = array(123);
+    $aRow = $db->queryRow($sQuery,$aValues,false);   // This returns null, but throws no error.
+    $aRow = $db->queryRow($sQuery,$aValues);         // This will throw an E_USER_ERROR
+```
 
 - **queryColumn()**  
 Takes: string (statement), array (params), int (column index)  
