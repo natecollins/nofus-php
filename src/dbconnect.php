@@ -403,15 +403,19 @@ class DBConnect {
 
             // Catch Array Values and Expand them
             $aExpandedValues = array();
-            for ($i=0; $i<count($aValues); $i++) {
-                if (is_array($aValues[$i])) {
-                    $sQuery = $this->expandValueLocation($sQuery,$i+1,count($aValues[$i]));
-                    $aExpandedValues = array_merge($aExpandedValues,$aValues[$i]);
+            $i=0;
+            foreach ($aValues as $key=>$value){
+                if (is_array($value)) {
+                    $sQuery = $this->expandValueLocation($sQuery,$i+1,count($value)); 
+                    // not sure what would happen if you mix anonymous placeholders (?) 
+                    // with named placeholders (:param). probably shouldn't do that.
+                    $aExpandedValues = array_merge($aExpandedValues,$value);
                 }
                 else {
-                    $aExpandedValues[] = $aValues[$i];
+                    $aExpandedValues[$key] = $value;
                 }
-            }
+                $i++;
+            }    
             $aValues = $aExpandedValues;
 
             // Execute Query
