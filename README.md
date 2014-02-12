@@ -255,62 +255,62 @@ Returns: string
 
 Returns a string representing the statement as it would be run if it were passed into query() with the given params, but does not actually execute the statement. Primarily used for debugging purposes to see how the params would be executed. It is possible that the returned statement may differ from the statement as it would be executed. The third argument is a boolean which determines if the notice "**[WARNING] This only EMULATES what the prepared statement will run.**" preceeding the return is suppressed (default is false, pass true to suppress the warning).
 
-- **queryDump()**
+- **queryDump()**  
 Takes: string (statement), array (params), boolean  
 Returns: string  
 
 Prints out into a HTML stream a string representing the statement as it would be run if it were passed into query() with the given params, but does not actually execute the statement. Primarily used for debugging purposes to see how the params would be executed. It is possible that the returned statement may differ from the statement as it would be executed. The third argument is a boolean which determines if the notice "**[WARNING] This only EMULATES what the prepared statement will run.**" preceeding the return is suppressed (default is false, pass true to suppress the warning).
 
-- **enumValues()**
+- **enumValues()**  
 Takes: string (table name), string (column name)  
 Returns: array  
 
 Queries the database to retrieve all possible values for an enum of a specified table and column. Returns an array containing these values.
 
-- **getTables()**
+- **getTables()**  
 Takes: nothing  
 Returns: array  
 
 Queries the database for a listing of all available tables. Return the tables names in an array.
 
-- **getAllColumns()**
+- **getAllColumns()**  
 Takes: nothing  
 Returns: array  
 
 Queries all tables for all their column names. Returns these column names as an array.
 PERFORMANCE NOTE: This function only queries the database the FIRST time it is used. After which it remembers the columns and doesn't bother re-querying the database on subsequent calls.
 
-- **getTableColumns()**
+- **getTableColumns()**  
 Takes: string (table name, optional)  
 Returns: array  
 
 Queries the database for information on columns from a given table. If no table is specified, then it queries all tables for column info. It returns columns info cordered by ordinal position. Currently, this function only returns: 'name' (string), 'is_nullable' (bool), 'is_autokey' (bool)
 
-- **startTransaction()**
+- **startTransaction()**  
 Takes: boolean|null (optional)  
 Returns: nothing  
 
 Start a transaction. Optionally, can pass a boolean to set the transaction isolation. If set to true, sets transaction isolation to "READ COMMITTED"; if false, sets it to "REPEATABLE READ"; if left null, no transaction level is set (MySQL default is "REPEATABLE READ").
 
-- **commitTransaction()**
+- **commitTransaction()**  
 Takes: nothing  
 Returns: nothing  
 
 Commits a previously started transaction to the database.
 
-- **rollbackTransaction()**
+- **rollbackTransaction()**  
 Takes: nothing  
 Returns: boolean  
 
 Attempts to rollback a previously started transaction. Returns false if there was no previously started transaction, or true otherwise.
 
-- **getQueryCount()**
+- **getQueryCount()**  
 Takes: nothing  
 Returns: int  
 
 Return the number of queries run since this object was created.
 
-- **getLast()**
+- **getLast()**  
 Takes: nothing  
 Returns: string  
 
@@ -320,9 +320,9 @@ Returns a dump of the last query run; if last query was part of a transaction, t
 Private Methods
 ---------------
 
-- **create()**
-- **expandValueLocation()**
-- **recordQuery()**
+- **create()**  
+- **expandValueLocation()**  
+- **recordQuery()**  
 
 
 UserData
