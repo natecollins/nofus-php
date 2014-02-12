@@ -377,7 +377,7 @@ class DBConnect {
      * @param int $iFetchStyle The PDO fetch style to query using
      * @param mixed $vFetchArg Additional argument to pass if the fetch style requires it
      * @param boolean $bFetchAll If true, all rows from a SELECT will be returned; if false, no rows will be returned (see queryNext())
-     * @return array An array of rows for SELECT; primary key for INSERT (NULL is none returned); number of rows affected for UPDATE/DELETE/REPLACE.
+     * @return array|int|null|false An array of rows for SELECT; primary key for INSERT (NULL is none returned); number of rows affected for UPDATE/DELETE/REPLACE. If a SQL error occurs, a E_USER_WARNING is triggered and false is returned.
      */
     public function query( $sQuery, $aValues=array(), $iFetchStyle=PDO::FETCH_ASSOC, $vFetchArg=null, $bFetchAll=true ) {
         $this->iQueryCount += 1;
@@ -390,7 +390,10 @@ class DBConnect {
         $aRows = array();
 
         # create connection if one doesn't exist
-        if ( !$this->create() ) return null;
+        if ( !$this->create() ) {
+            trigger_error("DBConnect Error: Could not establish connection to server.", E_USER_WARNING);
+            return false;
+        }
 
         # perform the query
         $this->cStatement = null;
@@ -403,10 +406,10 @@ class DBConnect {
 
             // Catch Array Values and Expand them
             $aExpandedValues = array();
-            $i=0;
+            $iPlaceholderLoc = 1;
             foreach ($aValues as $key=>$value){
                 if (is_array($value)) {
-                    $sQuery = $this->expandValueLocation($sQuery,$i+1,count($value)); 
+                    $sQuery = $this->expandValueLocation($sQuery,$iPlaceholderLoc,count($value)); 
                     // not sure what would happen if you mix anonymous placeholders (?) 
                     // with named placeholders (:param). probably shouldn't do that.
                     $aExpandedValues = array_merge($aExpandedValues,$value);
@@ -414,13 +417,16 @@ class DBConnect {
                 else {
                     $aExpandedValues[$key] = $value;
                 }
-                $i++;
+                $iPlaceholderLoc++;
             }    
             $aValues = $aExpandedValues;
 
             // Execute Query
             $this->cStatement = $this->cInstance->prepare($sQuery);
-            if ($this->cStatement == false) trigger_error("SQL Error: Could not prepare query. Query is not valid or references something non-existant.");
+            if ($this->cStatement == false) {
+                trigger_error("DBConnect Error: SQL could not prepare query. Query is not valid or references something non-existant.", E_USER_WARNING);
+                return false;
+            }
             $this->cStatement->execute($aValues);
 
             // Only fetch rows if requested
@@ -452,7 +458,8 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
 <?
             $this->recordQuery($this->cStatement);
 
-            trigger_error("Query Failed ({$aError[1]}): {$aError[2]}");
+            trigger_error("DBConnect Error: Query Failed ({$aError[1]}): {$aError[2]}", E_USER_WARNING);
+            return false;
         }
         $this->recordQuery($this->cStatement);
 
