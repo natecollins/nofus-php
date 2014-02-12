@@ -31,12 +31,12 @@ $sql_servers = array(
     )
 );
 
-$dbc = new DBConnect($sql_servers);
+$db = new DBConnect($sql_servers);
 
 $query = "SELECT firstname, lastname FROM users WHERE age > ?";
 $values = array(21);
 
-$names = $dbc->query($query, $values);
+$names = $db->query($query, $values);
 
 foreach ($names as $row) {
     echo "{$row['lastname']}, {$row['firstname']}";
@@ -186,10 +186,12 @@ Examples:
 ```php
     $sQuery = "SELECT name,age FROM users WHERE hair_color = ?";
     $aValues = array("brown");
+    $aRows = $db->query($sQuery,$aValues);
 ```
 ```php
     $sQuery = "SELECT name,age FROM users WHERE hair_color = :hair";
     $aValues = array(":hair"=>"brown");
+    $aRows = $db->query($sQuery,$aValues);
 ```
 
 Note: If you use '?' to identify variable positions, you MAY pass an array as a value, and it will be expanded and comma delimited.
@@ -197,17 +199,20 @@ For example, this query:
 ```php
     $sQuery = "SELECT name,age FROM users WHERE hair_color IN (?) AND age > ?";
     $aValues = array(array("brown","red","black"),20);
+    $aRows = $db->query($sQuery,$aValues);
 ```
 Would translate into:
 ```php
     $sQuery = "SELECT name,age FROM users WHERE hair_color IN (?,?,?) AND age > ?";
     $aValues = array("brown","red","black",20);
+    $aRows = $db->query($sQuery,$aValues);
 ```
 
 For queries with only a single value, you may pass the value directly
 ```php
     $sQuery = "SELECT name,age FROM users WHERE hair_color = ?";
-    $aValues = "brown";
+    $sValue = "brown";
+    $aRows = $db->query($sQuery,$sValue);
 ```
 
 Returns an array of rows for SELECT.
@@ -225,8 +230,8 @@ Executes a statement, but returns nothing. Retrieval of rows is expected to be d
 ```php
     $sQuery = "SELECT name, address FROM phonebook WHERE state = ?";
     $aValues = array("Michigan");
-    $dbc->queryLoop($sQuery,$aValues);
-    while ($aRow = $dbc->queryNext()) {
+    $db->queryLoop($sQuery,$aValues);
+    while ($aRow = $db->queryNext()) {
         echo "{$aRow['name']} lives at {$aRow['address']}" . PHP_EOL;
     } 
 ```
