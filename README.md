@@ -83,10 +83,10 @@ Determines whether or not the database object has an active connection to the da
 > actually just an alias for escapeIdentifier())
 
 - **escapeIdentifier()**  
-Takes: string  
+Takes: string, boolean (optional, default: true)  
 Returns: string  
 
-Sanitizes an identifier (table or column name) which may have come from an untrusted source (e.g. form input). If the passed string matches any column or table name, the first match is returned in a backticked string. If it doesn't match any table or column name, it returns an empty string. This is useful in preventing SQL injection attacks in cases where it is difficult or impossible to build a statement without a table or column name from an untrusted source.
+Sanitizes an identifier (table or column name) which may have come from an untrusted source (e.g. form input). If the passed string matches any column or table name, the first match is returned, optionally (default: true) in a backticked string. If it doesn't match any table or column name, it returns an empty string. This is useful in preventing SQL injection attacks in cases where it is difficult or impossible to build a statement without a table or column name from an untrusted source.
 
 ```php
 	$inColumn = $_GET{"column"};
@@ -243,7 +243,7 @@ Returns: array OR false
 Retrieves the next row from a previously called queryLoop() as an array. If no more rows are available, it returns false. See queryLoop().
 
 - **queryRow()**  
-Takes: string (statement), array (params), boolean (require row, default: true)  
+Takes: string (statement), array (params), boolean (require row, default: true), int (optional fetchtype)  
 Returns: array  
 
 Executes a statement and returns the first row as an array. If third arguement is 'true' (the default), will trigger an E_USER_ERROR if no rows are returned.

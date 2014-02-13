@@ -64,7 +64,7 @@ if (!defined('__DBCONNECT_GUARD__')) {
  *      Auto-rollback of transactions when a query fails.
  *      Pass an array as a value to a query; provides auto-expansion of array to comma-delimited values.
  *      Provides a safe mechanism to validate table and column names.
- * 
+ *
  * @author Nathan Collins
  */
 class DBConnect {
@@ -94,7 +94,7 @@ class DBConnect {
      *                   'database'=>'my_db'
      *           )
      *     );
-     * 
+     *
      * @param array $conn_info An array containing a list of servers' connection information
      */
     function __construct($conn_info, $bLoadBalance=false) {
@@ -123,7 +123,7 @@ class DBConnect {
 
      /**
       * Set whether or not errors should throw exceptions when a MySQL error occurs
-      * 
+      *
       * @param boolean $silent Do not show exceptions if set to true; does throw exceptions if set to false
       */
      public function silentErrors($silent=true) {
@@ -141,7 +141,7 @@ class DBConnect {
 
     /**
      * Check database connection
-     * 
+     *
      * @return boolean Returns true if a connection to the database exists; false otherwise
      */
     public function connectionExists() {
@@ -162,17 +162,19 @@ class DBConnect {
     /**
      * Escape identifiers for use in a query.
      * Note: Only works on table name and column names for the currently connected database.
-     * 
+     *
      * @param string $sName The potentially dangerous identifier
-     * @return string The safe identifier surrounded by backticks (`); if identifer is invalid, returns an empty string ('')
+     * @param boolean $bBacktick If true (the default) resulting successes are surrounded by backticks (`), otherwise results are just the identifier.
+     * @return string The safe identifier surrounded by backticks (`) if requested; if identifer is invalid, returns an empty string ('')
      */
-    public function escapeIdentifier($sName) {
+    public function escapeIdentifier($sName, $bBacktick=true) {
         $sSafe = '';
         /* Get all valid table name and column name identifiers */
         $aValids = array_merge($this->getTables(),$this->getAllColumns());
         foreach ($aValids as $sValid) {
             if ($sName == $sValid) {
-                $sSafe = '`'.str_replace("`","``",$sValid).'`';
+                $sSafe = $sValid;
+                if ($bBacktick) $sSafe = '`'.str_replace("`","``",$sSafe).'`';
                 break;
             }
         }
@@ -182,15 +184,15 @@ class DBConnect {
     /**
      * Enables "load balancing" between all servers in the server array.
      *
-     * (In practice, this just randomizes the order of the server array.) 
+     * (In practice, this just randomizes the order of the server array.)
      */
     public function loadBalance() {
         shuffle($this->aServers);
     }
-    
+
     /**
      * Set connection peristance; if persistance is changed, then recreate the database connection
-     * 
+     *
      * @param boolean $bPersistent If true, the connnection will be persistent; otherwise it will not be
      */
     public function setPersistentConnection($bPersistent=false) {
@@ -202,14 +204,14 @@ class DBConnect {
 
     /**
      * Create a PDO connection to a MySQL server
-     * 
+     *
      * @param boolean $bReinitialize If set to true, then any curent connection is terminated and a new one is created
      * @return boolean If there is a valid connection or one was created, return true; false otherwise.
      */
     private function create($bReinitialize=false) {
         /* Destroy any existing connection if reinitializing */
         if ($bReinitialize == true) $this->close();
-        
+
         /* Only create if no connection already exists */
         if (!$this->connectionExists()) {
             $this->bTransaction = false;
@@ -255,30 +257,30 @@ class DBConnect {
 
     /**
      * Get host name of connected server
-     * 
+     *
      * @return string The domain name or IP of the last connection
      */
     public function getHost() {
         if ($this->iServerIndex === null) return 'No Connection';
         return $this->aServers[$this->iServerIndex]['host'];
     }
-    
+
     /**
      * Get the name of the database being used on the connected server
-     * 
+     *
      * @return string The name of the datbase currently connected to, or empty string ('') if not connected
      */
     public function getDatabaseName() {
         if (!$this->create()) return '';
         return $this->aServers[$this->iServerIndex]['database'];
     }
-    
-    
+
+
     /**
      * Emulate safe-quoting variables to make them safe (actual query uses prepared statements)
-     * 
+     *
      * @param mixed $xValue A value to escape
-     * @return mixed The value escaped by the connection instance 
+     * @return mixed The value escaped by the connection instance
      */
 
     public function quoteSmart($xValue) {
@@ -295,7 +297,7 @@ class DBConnect {
             trigger_error('Magic quotes has been DEPRECATED and should not be used; please contact your administrator for further help.');
             exit(1);
         }
-        
+
         # quote if not a number
         if ( !(is_int($xValue) || is_float($xValue)) ) {
             $xValue = $this->cInstance->quote($xValue);
@@ -306,7 +308,7 @@ class DBConnect {
 
     /**
      * Get a string representing the query and values for a given SQL statement
-     * 
+     *
      * @param object $cStatement The PDO statement
      * @return string The dump of query and params, captured into a string
      */
@@ -318,7 +320,7 @@ class DBConnect {
 
     /**
      * Replace a '?' with comma delimited '?'s at the nth occurance of '?'
-     * 
+     *
      * @param string $sQuery The string that contains '?' for value placeholders
      * @param int $iNth The nth occurance of '?' in the query (First occurance = 1, second = 2, etc)
      * @param int $iCount The number of comma delimted '?' to replace the existing placeholder with
@@ -340,10 +342,10 @@ class DBConnect {
         }
         return $sNewQuery;
     }
-    
+
     /**
      * Record the last query statement attempted
-     * 
+     *
      * @param object $cStatement The statement to record the query from
      */
     private function recordQuery($cStatement) {
@@ -359,7 +361,7 @@ class DBConnect {
      *     $aValues = array("brown");
      *     $sQuery = "SELECT name,age FROM users WHERE hair_color = :hair";
      *     $aValues = array(":hair"=>"brown");
-     *     
+     *
      * Note: If you use '?' to identify variable positions, you MAY pass an array as a value, and it will be expanded and comma delimited.
      *   For example, this query:
      *     $sQuery = "SELECT name,age FROM users WHERE hair_color IN (?) AND age > ?";
@@ -381,7 +383,7 @@ class DBConnect {
      */
     public function query( $sQuery, $aValues=array(), $iFetchStyle=PDO::FETCH_ASSOC, $vFetchArg=null, $bFetchAll=true ) {
         $this->iQueryCount += 1;
-        
+
         # query type
         $bIsInsert = preg_match('/^\s*INSERT/i',$sQuery);
         $bIsUpdateDelete = preg_match('/^\s*(UPDATE|REPLACE|DELETE)/i',$sQuery);
@@ -409,8 +411,8 @@ class DBConnect {
             $iPlaceholderLoc = 1;
             foreach ($aValues as $key=>$value){
                 if (is_array($value)) {
-                    $sQuery = $this->expandValueLocation($sQuery,$iPlaceholderLoc,count($value)); 
-                    // not sure what would happen if you mix anonymous placeholders (?) 
+                    $sQuery = $this->expandValueLocation($sQuery,$iPlaceholderLoc,count($value));
+                    // not sure what would happen if you mix anonymous placeholders (?)
                     // with named placeholders (:param). probably shouldn't do that.
                     $aExpandedValues = array_merge($aExpandedValues,$value);
                 }
@@ -418,7 +420,7 @@ class DBConnect {
                     $aExpandedValues[$key] = $value;
                 }
                 $iPlaceholderLoc++;
-            }    
+            }
             $aValues = $aExpandedValues;
 
             // Execute Query
@@ -488,7 +490,7 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
         return $aRows;
     }
 
-    
+
     /**
      * Executes a SELECT query for use with queryNext(). Does not return any query data; all rows are to be
      * retrieved with queryNext()
@@ -519,14 +521,15 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
 
     /**
      * Returns only the first row from the query; when using default arguments, will throw an error if no rows were returned.
-     * 
+     *
      * @param string $sQuery The query to run
      * @param array $aValues The values the query is to use
      * @param boolean $bRequireRow If set to true (the default), queryRow() will throw an E_USER_ERROR if query didn't match at least one row.
+     * @param int $iFetchStyle The PDO fetch style to query using
      * @return array|null The first row of the results of the query; if query found no rows, null may be returned.
      */
-    public function queryRow( $sQuery, $aValues=array(), $bRequireRow=true) {
-        $aArray = $this->query($sQuery,$aValues);
+    public function queryRow($sQuery, $aValues=array(), $bRequireRow=true, $iFetchStyle=PDO::FETCH_ASSOC) {
+        $aArray = $this->query($sQuery,$aValues,$iFetchStyle);
         $aRow = null;
         if ( is_array($aArray) && count($aArray) > 0 ) {
             $aRow = array_shift($aArray);
@@ -539,7 +542,7 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
 
     /**
      * Return all the values for a column from a given query (defaults to first column)
-     * 
+     *
      * @param string $sQuery The query to run
      * @param array $aValues The values the query is to use
      * @param int $iColumnNum What column to retrieve (0 based column index)
@@ -554,7 +557,7 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
      *   run as a prepared statement, as this only emulates the escaping that prepared statments would
      *   perform.
      * For assisting in debugging only.
-     * 
+     *
      * @param string $sQuery The query to run
      * @param array $aValues The values the query is to use
      * @return string The emulated query string with escaped values inserted
@@ -562,7 +565,7 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
     public function queryReturn( $sQuery, $aValues=array(), $bSupressWarning=false) {
         $sReturn = "\n-- [WARNING] This only EMULATES what the prepared statement will run.\n\n";
         if ($bSupressWarning) $sReturn = "\n";
-        
+
         # Catch Array Values and Expand them
         $aExpandedValues = array();
         for ($i=0; $i<count($aValues); $i++) {
@@ -575,7 +578,7 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
             }
         }
         $aValues = $aExpandedValues;
-        
+
         # escape values
         for ($i = 0; $i < count($aValues); $i++) {
             $aValues[$i] = $this->quoteSmart($aValues[$i]);
@@ -597,7 +600,7 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
      *   run as a prepared statement, as this only emulates the escaping that prepared statments would
      *   perform.
      * For assisting in debugging only.
-     * 
+     *
      * @param string $sQuery The query to run
      * @param array $aValues The values the query is to use
      * @return string The emulated query string with escaped values inserted
@@ -609,17 +612,19 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
 
     /**
      * Return all possible enum values from a column in index order.
-     * 
+     *
      * @param string $sTable The name of the table the column field is in
      * @param string $sField The name of the column
      * @return array The enum values in index order
      */
     public function enumValues($sTable, $sField) {
         $aEnums = array();
-        $sTable = $this->escapeIdentifier($sTable);
-        $sField = $this->escapeIdentifier($sField);
-        $sQuery = 'SHOW COLUMNS FROM ' . $sTable . ' LIKE ' . $sField . '';
-        $aRow = $this->queryRow($sQuery);
+        $sSafeTable = $this->escapeIdentifier($sTable);
+        $sSafeField = $this->escapeIdentifier($sField, false);
+        $sQuery = "SHOW COLUMNS FROM {$sSafeTable} LIKE '{$sSafeField}'";
+
+        $aRow = $this->queryRow($sQuery, array(), true, PDO::FETCH_NUM);
+
         preg_match_all('/\'(.*?)\'/', $aRow[1], $aEnums);
         if(!empty($aEnums[1])) {
             // organize values based on their mysql order
@@ -628,10 +633,10 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
         }
         else return array();
     }
-    
+
     /**
      * Get a list of tables for this database
-     * 
+     *
      * @return array The array of table identifier names
      */
     public function getTables() {
@@ -646,10 +651,10 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
         }
         return $aTables;
     }
-    
+
     /**
      * Get a list of column names for this database
-     * 
+     *
      * @return array The array of columns identifier names
      */
     public function getAllColumns() {
@@ -671,7 +676,7 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
      *     name                 = The name of the column
      *     is_nullable          = If the column is allowed to be NULL
      *     is_autokey           = If the column is an auto_increment field
-     * 
+     *
      * @param string $sTable The table name to examine; if null, then pull from all tables in this database
      * @return array An array of all the columns with data regarding each, in index order
      */
@@ -705,7 +710,7 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
 
     /**
      * Start a transaction.
-     * 
+     *
      * @param boolean|null $bReadCommitted If set to true, sets transaction isolation to "READ COMMITTED";
      *                                     if false, sets it to "REPEATABLE READ"; if left null, no transaction
      *                                     level is set (MySQL default is "REPEATABLE READ").
@@ -738,7 +743,7 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
 
     /**
      * Rollback a transaction
-     * 
+     *
      * @return boolean Returns true on rollback; false if no transaction was taking place
      */
     public function rollbackTransaction() {
@@ -752,7 +757,7 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
 
     /**
      * Return the number of queries run since this object was created
-     * 
+     *
      * @return int The number of queries run
      */
     public function getQueryCount() {
@@ -761,7 +766,7 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
 
     /**
      * Return info about the last query run
-     * 
+     *
      * @return string A dump of the last query run; if last query was
      *     part of a transaction, then returns a dump of all queries
      *     run since the transaction was started.
