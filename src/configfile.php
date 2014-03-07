@@ -41,9 +41,14 @@ name = Example
 longname = John Doe     # would parse as "John Doe"
 name2 = " Jane Doe "    # to prevent whitespace trimming, add double quotes; would parse as " Jane Doe "
 name3 = 'Jerry'         # single quotes parse as normal characters; would parse as "'Jerry'"
-words = "Quotes \"inside\" a string"    # to put double quotes inside double quotes, escape them
+words = "Quotes \"inside\" a string"                # can use double quotes inside double quotes if you escape them
+specials = "This has \#, \\, and \= inside of it"   # to use special characters in a value, escape them in a quoted string
 tricky = "half-quoted         # unmatched double quote parses as "\"half-quoted"
 novalue =                     # values can be left blank
+enable_keys                   # no assignment delimiter given (aka '='), variable is assigned boolean value true
+
+// Alternate line comment style
+// Block comments are also allowed in the style of / * Comment * / (spaces removed)
 
 # variables can have a scope by placing a dot in their identifier
 marbles.green = 2
@@ -99,10 +104,8 @@ if ($cf->load()) {
  * Files can be parsed generically, or a ruleset and parse error messages can be predefined.
  */
 class ConfigFile {
-    // File Values
-    private $sFileName;
-    private $sPath;
-    private $iHandle;
+    // File Info
+    private $sFilePath;
 
     // Parse values
     private $aLineCommentStart;         # multiples allowed
@@ -110,28 +113,32 @@ class ConfigFile {
     private $sBlockCommentEnd;
     private $sVarValDelimiter;          # first instance of this is the variable/value delmiiter
     private $sScopeDelimiter;           # character(s) that divides scope levels
+    private $sEscapeChar;               # escape character
 
-    // Parse rules
-    //TODO
+    // Parse state
+    private $bInsideBlockComment;
 
     // Errors
     private $aErrors;
 
-    function __construct($sFileToOpen, $sAccess="ro") {
-        $this->sFileName = null;
-        $this->sPath = null;
-        $this->iHandle = 0;
+    function __construct($sFileToOpen) {
+        $this->sFilePath = null;
 
         $this->aLineCommentStart = array('#','//');
         $this->sBlockCommentStart = "/*";
         $this->sBlockCommentEnd = "*/";
         $this->sVarValDelimiter = "=";
         $this->sScopeDelimiter = ".";
+        $this->sEscapeChar = "\\";
+
+        $this->bInsideBlockComment = false;
 
         $this->aErrors = array();
 
         # Parse sFileToOpen, if null, then this is a scope query result
-        //TODO
+        if ($sFileToOpen != null && is_string($sFileToOpen)) {
+            $this->sFilePath = $sFileToOpen;
+        }
     }
 
     /**
@@ -150,12 +157,90 @@ class ConfigFile {
      */
     public function load() {
         # If file is null, then this is a scope query result, do nothing
-        if ($this->sFileName === null) {
+        if ($this->sFilePath === null) {
             $this->aErrors[] = "Cannot load file; no file was given. (Note: you cannot load() a query result.)";
             return false;
         }
 
-        //TODO
+        if ( !(file_exists($this->sFilePath) && !is_dir($this->sFilePath) && is_readable($this->sFilePath)) ) {
+            $this->aErrors[] = "Cannot load file; file does not exist or is not readable.";
+            return false;
+        }
+
+        $aLines = file($this->sFilePath, FILE_IGNORE_NEW_LINES);
+        if ($aLines === false) {
+            $this->aErrors[] = "Cannot load file; unknown file error.";
+            return false;
+        }
+
+        # Process lines
+        foreach ($aLines as $iLineNum => $sLine) {
+            $this->processLine($iLineNum, $sLine);
+        }
+
+        # If parsing lines generated errors, return false
+        if (count($this->aErrors) > 0) return false;
+        # Make it past all error conditions, so return true
+        return true;
+    }
+
+    /**
+     * Parse a line
+     */
+    private function processLine($iLineNum, $sLine) {
+        # check if starting already inside a block comment
+        if ($this->bInsideBlockComment) {
+            # check if line has end of block comment
+            $iEndCheck = strpos($sLine,$this->sBlockCommentEnd);
+            # if true, find first block end and remove it and comment data before it
+            if ($iEndCheck !== false) {
+                $iBlockEndLen = strlen($this->sBlockCommentEnd);
+                $sLine = substr($sLine,$iEndCheck+$iBlockEndLen);
+                $this->bInsideBlockComment = false;
+            }
+            # if false, then entire line is inside block comment
+            else {
+                $sLine = '';
+            }
+        }
+
+        # check for and remove line comment data
+        $iStart = false;
+        foreach ($this->aLineCommentStart as $sCommentStart) {
+            $iStartCheck = strpos($sLine, $sCommentStart);
+            if ($iStartCheck !== false && ($iStart === false || $iStartCheck < $iStart)) {
+                $iStart = $iStartCheck;
+            }
+        }
+        if ($iStart !== false) {
+            $sLine = substr($sLine, 0, $iStart);
+        }
+
+        # check for block comment open/close pairs and remove them
+        $sEscapedBlockStart = preg_quote($this->sBlockCommentStart, '/');
+        $sEscapedBlockEnd = preg_quote($this->sBlockCommentEnd, '/');
+        $sBlockPattern = "/{$sEscapedBlockStart}.*?{$sEscapedBlockEnd}/";
+        $sLine = preg_replace($sBlockPattern,'',$sLine);
+        if ($sLine === null) {
+            $this->aError[] = "Block commend parse failure at line {$iLineNum}";
+            $sLine = '';    # this line has failed us for the last time
+        }
+
+        # check for new block comment start
+        $iBlockCheck = strpos($sLine, $this->sBlockCommentStart);
+        if ($iBlockCheck !== false) {
+            $sLine = substr($sLine,0,$iBlockCheck);
+            $this->bInsideBlockComment = true;
+        }
+
+        # check for assignment delimiter
+        # split on assignment delimiter
+        # trim data (both variable and value)
+        # if double-quoted on both ends, trim quotes from value data
+        # un-escape remaining
+
+        // TEST OUTPUT
+        echo $sLine . PHP_EOL;
     }
 
     /**
@@ -163,7 +248,7 @@ class ConfigFile {
      * @return array And array of errors; can be empty if no errors were encountered or the file has not been loaded yet
      */
     public function errors() {
-        //TODO
+        return $this->aErrors;
     }
 
     /**
