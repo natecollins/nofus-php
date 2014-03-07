@@ -426,7 +426,7 @@ class DBConnect {
             // Execute Query
             $this->cStatement = $this->cInstance->prepare($sQuery);
             if ($this->cStatement == false) {
-                trigger_error("DBConnect Error: SQL could not prepare query:<blockquote><pre>$sQuery</pre></blockquote>Query is not valid or references something non-existant.", E_USER_WARNING);
+                trigger_error("DBConnect Error: SQL could not prepare query. Query is not valid or references something non-existant: {$sQuery}", E_USER_WARNING);
                 return false;
             }
             $this->cStatement->execute($aValues);
