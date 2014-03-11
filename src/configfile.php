@@ -41,7 +41,7 @@ name = Example
 longname = John Doe     # would parse as "John Doe"
 name2 = " Jane Doe "    # to prevent whitespace trimming, add double quotes; would parse as " Jane Doe "
 name3 = 'Jerry'         # single quotes parse as normal characters; would parse as "'Jerry'"
-words = "Quotes "inside" a string"                  # can use double quotes inside double quotes
+words = "Quotes \"inside\" a string"                  # can use double quotes inside double quotes, but must be escaped
 specials = "This has #, \, and = inside of it"      # can use special characters in a quoted value
 tricky = "half-quoted         # unmatched double quote parses as "\"half-quoted"
 badquoted = this is "NOT" a quoted string           # value doesn't start with a quote, so quotes are treated as normal chars
@@ -50,7 +50,6 @@ novalue =                     # values can be left blank
 enable_keys                   # no assignment delimiter given (aka '='), variable is assigned boolean value true
 
 // Alternate line comment style
-// Block comments are also allowed in the style of / * Comment * / (spaces removed)
 
 # variables can have a scope by placing a dot in their identifier
 marbles.green = 2
@@ -111,15 +110,10 @@ class ConfigFile {
 
     // Parse values
     private $aLineCommentStart;         # multiples allowed
-    private $sBlockCommentStart;
-    private $sBlockCommentEnd;
     private $sVarValDelimiter;          # first instance of this is the variable/value delmiiter
     private $sScopeDelimiter;           # character(s) that divides scope levels
     private $sQuoteChar;                # the quote character
-    private $sEscapeChar;               # escape character
-
-    // Parse state
-    private $bInsideBlockComment;
+    private $sEscapeChar;               # the escape character
 
     // Errors
     private $aErrors;
@@ -128,14 +122,10 @@ class ConfigFile {
         $this->sFilePath = null;
 
         $this->aLineCommentStart = array('#','//');
-        $this->sBlockCommentStart = "/*";
-        $this->sBlockCommentEnd = "*/";
         $this->sVarValDelimiter = "=";
         $this->sScopeDelimiter = ".";
         $this->sQuoteChar = "\"";
         $this->sEscapeChar = "\\";
-
-        $this->bInsideBlockComment = false;
 
         $this->aErrors = array();
 
@@ -171,15 +161,11 @@ class ConfigFile {
             return false;
         }
 
-        $sFileData = file_get_contents($this->sFilePath);
-        if ($sFileData === false) {
+        $aLines = file($this->sFilePath, FILE_IGNORE_NEW_LINES);
+        if ($aLines === false) {
             $this->aErrors[] = "Cannot load file; unknown file error.";
             return false;
         }
-
-        # remove block comments before splitting into lines
-
-        $aLines = preg_split('/^\R$/', $sFileData);
 
         # Process lines
         foreach ($aLines as $iLineNum => $sLine) {
@@ -190,35 +176,6 @@ class ConfigFile {
         if (count($this->aErrors) > 0) return false;
         # Make it past all error conditions, so return true
         return true;
-    }
-
-    private function removeBlockComments($sFileData) {
-        
-
-        return $sFileData;
-    }
-
-    /**
-     * Check for the end of a block comment and handle processing of it
-     * @param string $sLine The line to check
-     * @return string The line after removal of any block comment end
-     */
-    private function handleBlockEnd($sLine) {
-        if ($this->bInsideBlockComment) {
-            # check if line has end of block comment
-            $iEndCheck = strpos($sLine,$this->sBlockCommentEnd);
-            # if true, find first block end and remove it and comment data before it
-            if ($iEndCheck !== false) {
-                $iBlockEndLen = strlen($this->sBlockCommentEnd);
-                $sLine = substr($sLine,$iEndCheck+$iBlockEndLen);
-                $this->bInsideBlockComment = false;
-            }
-            # if false, then entire line is inside block comment
-            else {
-                $sLine = '';
-            }
-        }
-        return $sLine;
     }
 
     /**
@@ -257,39 +214,136 @@ class ConfigFile {
     }
 
     /**
-     * Checks if the line has a valid quoted value. Assumes we are not in a block comment.
-     *  - First non-whitespace character after assignment delimiter must be a quote
-     *  - A matching quote character must exist to close the value
-     *  - The closing quote has no other chars are after it (other than whitespace and comments)
-     *  - Assignment delimiter and open quote must not be in a comment
-     * @param string $sLine The line to check
-     * @return boolean Returns true if a quoted value exist, false otherwise
+     * Find the next unescaped quote character and return it's position in the provided
+     * line segment
+     * @param string $sLinePart A line or line segment
+     * @return int|false The position of the unescaped quote character, or false if not found
      */
-    private function hasQuotedValue($sLine) {
-        $iLineCommentPos = $this->findLineCommentPosition($sLine);
-        $iAssignDelimPos = $this->findAssignmentDelimiterPosition($sLine);
-        $iOpenQuotePos = $this->findOpenQuotePosition($sLine);
-
-        $bIsQuoted = true;
-        if ($iOpenQuotePos < $iAssignDelimPos || $iLineCommentPos < $iOpenQuotePos) {
-            $bIsQuoted = false;
+    private function findNextQuotePosition($sLinePart) {
+        $sRegexQuoteChar = preg_quote($this->sQuoteChar, "/");
+        $sRegexEscapeChar = preg_quote($this->sEscapeChar, "/");
+        $sCloseQuotePattern = "/[^{$sRegexEscapeChar}]?{$sRegexQuoteChar}/";
+        $iMatchPos = false;
+        # find next double quote that isn't escaped
+        if (preg_match($sCloseQuotePattern,$sLine,$aMatches,PREG_OFFSET_CAPTURE)) {
+            $iMatchPos = $aMatches[0][1];
         }
-
-        return $bIsQuoted;
+        return $iMatchPos;
     }
 
     /**
-     * Check if the line is in a valid format. Assumes we are not in a block comment.
+     * Checks if the line has a valid quoted value.
+     *
+     * @param string $sLine The line to check
+     * @param int|null $sLineForError If a line number is provided, will add error messages if invalidly quoted
+     * @return boolean Returns true if a quoted value exist, false otherwise
+     */
+    private function hasQuotedValue($sLine, $iLineForError=null) {
+        #################################################
+        # - Variable name must be valid
+        # - Assignment delimiter must exist after variable name (allowing for whitespace)
+        # - First character after assignment delimiter must be a quote (allowing for whitespace)
+        # - Assignment delimiter and open quote must not be in a comment
+        # - A matching quote character must exist to close the value
+        # - The closing quote has no other chars are after it (other than whitespace and comments)
+        #################################################
+        $iOpenQuotePos = $this->findOpenQuotePosition($sLine);
+        $iLineCommentPos = $this->findLineCommentPosition($sLine);
+
+        # if line comment starts before an open quote, then line comment is definitely not in a quoted value
+        if ($iLineCommentPos !== false && ($iOpenQuotePos === false || $iLineCommentPos < $iOpenQuotePos)) {
+            $sLine = substr($sLine, 0, $iLineCommentPos);
+        }
+        # if an open quote exists (and it's not in a comment), try to find it's closing quote
+        if ($iOpenQuotePos !== false) {
+            $iCloseQuotePos = $this->findNextQuotePosition($sLine);
+            if ($iLineForError !== null && $iCloseQuotePos === false) {
+                $this->addError($iLineForError, "Quoted value has no closing quote.");
+            }
+            else {
+                //
+            }
+        }
+
+
+        //TODO
+        return false;
+    }
+
+    /**
+     * Returns the trimmed string before any delimiter on a line.
+     *  - Removes comments from line
+     *  - If no delimiter is present, returns the whole line (minus any comment)
+     * @param string $sLine The line to operate from
+     * @return string The value before any delimiter
+     */
+    private function getPreDelimiter($sLine) {
+        $iAssignDelimPos = $this->findAssignmentDelimiterPosition($sLine);
+        $iLineCommentPos = $this->findLineCommentPosition($sLine);
+
+        # if comment starts before the delimiter, then the delimiter is commented out; ignore it
+        if ($iLineCommentPos !== false && ($iAssignDelimPos === false || $iLineCommentPos < $iAssignDelimPos) ) {
+            $sLine = substr($sLine, 0, $iLineCommentPos);
+        }
+
+        # if the delimiter exists (non-commented)
+        if ($iAssignDelimPos !== false) {
+            $sLine = substr($sLine, 0, $iAssignDelimPos);
+        }
+
+        # trim off any whitespace
+        $sLine = trim($sLine);
+
+        return $sLine;
+    }
+
+    /**
+     * Checks if the line has a variable name and that it's valid
+     * @param string $sLine The line to check
+     * @param int|null $iLineForError If provided, will add an error on invalid variable name characters
+     * @return boolean Returns true if variable name exists and is valid, false otherwise
+     */
+    private function hasValidVariableName($sLine, $iLineForError=null) {
+        $sVarNameCheck = $this->getPreDelimiter($sLine);
+        $sValidCharSet = "a-zA-Z0-9_\-" . preg_quote($this->sScopeDelimiter, "/");
+
+        # an empty variable name is not valid
+        $bValid = ($sVarNameCheck !== "");
+        # check for invalid characters
+        if (preg_match("/[^{$sValidCharSet}]/", $sVarNameCheck)) {
+            $bValid = false;
+            if ($iLineForError !== null) {
+                $this->addError($iLineForError, "Invalid variable name.");
+            }
+        }
+
+        return $bValid;
+    }
+
+    /**
+     * Gets a valid variable name for a line, or false if no valid variable name exists.
+     * @param string $sLine The line to check
+     * @param int|null $iLineForError If provided, will add an error on invalid variable name characters
+     * @return string|false The variable name, or false if no valid variable name existed
+     */
+    private function getVariableName($sLine, $iLineForError=null) {
+        $sValidVar = false;
+        if ($this->hasValidVariableName($sLine, $iLineForError)) {
+            $sValidVar = $this->getPreDelimiter($sLine);
+        }
+        return $sValidVar;
+    }
+
+    /**
+     * Check if the line is in a valid format.
      * Option 1:
      *  - Line has no variable or value name; line is blank or just a comment.
      * Option 2:
      *  - Line has a variable name, but no value due to no assignment delimiter.
      *  - Variable is only made of allowed characters (a-zA-Z0-9_-) plus scope character.
-     *  - Inline block comments should be ignored.
      * Option 3:
      *  - Line has a variable name plus an optional value after the assignment delimiter.
      *  - If value starts and ends with the quote character, ignore the outside quotes and treat the entire quoted string as the value
-     *  - Inline block comments outside of a quoted value should be ignored.
      */
     private function isValidLine($sLine) {
         #################################################
@@ -297,20 +351,15 @@ class ConfigFile {
         #################################################
         $iOpenQuotePos = $this->findOpenQuotePosition($sLine);
         $iLineCommentPos = $this->findLineCommentPosition($sLine);
-        # should the possibilty of a line comment exist
-        if ($iLineCommentPos !== false) {
-            # if line comment starts before an open quote, then line comment is definitely not in a quoted value
-            if ($iOpenQuotePos === false || $iLineCommentPos < $iOpenQuotePos) {
-                $sLine = substr($sLine, 0, $iLineCommentPos);
-            }
-        }
-        
 
-        # remove inline block quotes except for those in a quoted value string
-        $sEscapedBlockStart = preg_quote($this->sBlockCommentStart, '/');
-        $sEscapedBlockEnd = preg_quote($this->sBlockCommentEnd, '/');
-        $sBlockPattern = "/{$sEscapedBlockStart}.*?{$sEscapedBlockEnd}/";
-        $sLine = preg_replace('//', '', $sLine);
+        # if line comment starts before an open quote, then line comment is definitely not in a quoted value
+        if ($iLineCommentPos !== false && ($iOpenQuotePos === false || $iLineCommentPos < $iOpenQuotePos)) {
+            $sLine = substr($sLine, 0, $iLineCommentPos);
+        }
+        # if an open quote exists (and it's not in a comment), try to find it's closing quote
+        if ($iOpenQuotePos !== false) {
+        }
+
         # check if delimiter exists
     }
 
@@ -318,48 +367,34 @@ class ConfigFile {
      * Parse a line
      */
     private function processLine($iLineNum, $sLine) {
-        # check if starting already inside a block comment
-        $sLine = $this->handleBlockEnd($sLine);
+        // DEBUG
+        echo PHP_EOL . "PROCESSING LINE: " . $sLine . PHP_EOL;
 
-        # ignore line comments if they are in a quoted value string
-        $iLineCommendSearchStart = 0;
-        # check if quoted value string exists (after assignment delimiter, but before any line comment start)
-        $iAssignDelimPos = $this->findAssignmentDelimiterPosition($sLine);
-        $iOpenQuotePos = $this->findOpenQuotePosition($sLine);
-        $iLineCommentPos = $this->findLineCommentPosition($sLine);
-
-        # the assignment delimiter and open quote must not be in a line comment AND the quote must come after the delimiter
-        if ($iLineCommentPos > $iAssignDelimPos && $iLineCommentPos > $iOpenQuotePos && $iAssignDelimPos < $iOpoenQuotePos) {}
-        # check if quoted string has a matching end quote (non-escaped)
-        # if quoted string value exists, then do not check for line comments until after the close quote
-        //TODO
-        
-
-        # check for and remove line comment data
-        $iLineCommentPos = $this->findLineCommentPosition($sLine, $iLineCommentSearchStart);
-        if ($iLineCommentPos !== false) {
-            $sLine = substr($sLine, 0, $iLineCommentPos);
+        $sVarName = $this->getVariableName($sLine, $iLineNum);
+        if ($sVarName !== false) {
+            echo "NAME: " . $sVarName . PHP_EOL;
         }
 
-        # ignore block comments if they are in a quoted value string
-        //TODO
 
-        # check for block comment open/close pairs and remove them
-        $sEscapedBlockStart = preg_quote($this->sBlockCommentStart, '/');
-        $sEscapedBlockEnd = preg_quote($this->sBlockCommentEnd, '/');
-        $sBlockPattern = "/{$sEscapedBlockStart}.*?{$sEscapedBlockEnd}/";
-        $sLine = preg_replace($sBlockPattern,'',$sLine);
-        if ($sLine === null) {
-            $this->aError[] = "Block commend parse failure at line {$iLineNum}";
-            $sLine = '';    # this line has failed us for the last time
-        }
-
-        # check for new block comment start
-        $iBlockCheck = strpos($sLine, $this->sBlockCommentStart);
-        if ($iBlockCheck !== false) {
-            $sLine = substr($sLine,0,$iBlockCheck);
-            $this->bInsideBlockComment = true;
-        }
+#        # ignore line comments if they are in a quoted value string
+#        $iLineCommendSearchStart = 0;
+#        # check if quoted value string exists (after assignment delimiter, but before any line comment start)
+#        $iAssignDelimPos = $this->findAssignmentDelimiterPosition($sLine);
+#        $iOpenQuotePos = $this->findOpenQuotePosition($sLine);
+#        $iLineCommentPos = $this->findLineCommentPosition($sLine);
+#
+#        # the assignment delimiter and open quote must not be in a line comment AND the quote must come after the delimiter
+#        if ($iLineCommentPos > $iAssignDelimPos && $iLineCommentPos > $iOpenQuotePos && $iAssignDelimPos < $iOpoenQuotePos) {}
+#        # check if quoted string has a matching end quote (non-escaped)
+#        # if quoted string value exists, then do not check for line comments until after the close quote
+#        //TODO
+#        
+#
+#        # check for and remove line comment data
+#        $iLineCommentPos = $this->findLineCommentPosition($sLine, $iLineCommentSearchStart);
+#        if ($iLineCommentPos !== false) {
+#            $sLine = substr($sLine, 0, $iLineCommentPos);
+#        }
 
         # check for assignment delimiter
         # split on assignment delimiter
@@ -367,8 +402,11 @@ class ConfigFile {
         # if double-quoted on both ends, trim quotes from value data
         # un-escape remaining
 
-        // TEST OUTPUT
-        echo $sLine . PHP_EOL;
+    }
+
+    private function addError($iLine, $sMessage) {
+        $iLine++;   // due to base 0 line indexing
+        $this->aErrors[] = "ConfigFile parse error on line {$iLine}: {$sMessage}";
     }
 
     /**
