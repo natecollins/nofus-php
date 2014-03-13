@@ -239,6 +239,7 @@ class ConfigFile {
      * @return boolean Returns true if a quoted value exist, false otherwise
      */
     private function hasQuotedValue($sLine, $iLineForError=null) {
+        $bQuotedValue = false;
         #################################################
         # - Variable name must be valid
         # - Assignment delimiter must exist after variable name (allowing for whitespace)
@@ -247,27 +248,33 @@ class ConfigFile {
         # - A matching quote character must exist to close the value
         # - The closing quote has no other chars are after it (other than whitespace and comments)
         #################################################
-        $iOpenQuotePos = $this->findOpenQuotePosition($sLine);
-        $iLineCommentPos = $this->findLineCommentPosition($sLine);
-
-        # if line comment starts before an open quote, then line comment is definitely not in a quoted value
-        if ($iLineCommentPos !== false && ($iOpenQuotePos === false || $iLineCommentPos < $iOpenQuotePos)) {
-            $sLine = substr($sLine, 0, $iLineCommentPos);
-        }
-        # if an open quote exists (and it's not in a comment), try to find it's closing quote
-        if ($iOpenQuotePos !== false) {
-            $iCloseQuotePos = $this->findNextQuotePosition($sLine);
-            if ($iLineForError !== null && $iCloseQuotePos === false) {
-                $this->addError($iLineForError, "Quoted value has no closing quote.");
+        if ($this->hasValidVariableName($sLine)) {
+            # at this point, we know the variable name is valid
+            $sEscDelim = preg_quote($this->sVarValDelimiter, '/');
+            $sEscQuote = preg_quote($this->sQuoteChar, '/');
+            $sEscEscape = preg_quote($this->sEscapeChar, '/');
+            $sEscCommentStarts = "";
+            foreach ($this->aLineCommentStart as $sCommentStart) {
+                if ($sEscCommentStarts != "") { $sEscCommentStarts .= "|"; }
+                $sEscCommentStarts .= preg_quote($sCommentStart, '/');
             }
-            else {
-                //
+            $sQuoteValPattern = "/^[^{$sEscDelim}]+{$sEscDelim}\s*{$sEscQuote}.*(?<!{$sEscEscape}){$sEscQuote}\s*(?:({$sEscCommentStarts}).*)?$/";
+
+            if (preg_match($sQuoteValPattern, $sLine) === 1) {
+                $bQuotedValue = true;
+            }
+
+            # if not a valid quoted value, but has a valid open quote, add an error
+            if ($bQuotedValue == false && $iLineForError !== null) {
+                # check if open quote is valid
+                $sOpenQuotePattern = "/^[^{$sEscDelim}]+{$sEscDelim}\s*{$sEscQuote}/";
+                if (preg_match($sOpenQuotePattern, $sLine) === 1) {
+                    $this->addError($iLineForError, "Open quotes without matching close quotes.");
+                }
             }
         }
 
-
-        //TODO
-        return false;
+        return $bQuotedValue;
     }
 
     /**
@@ -346,21 +353,7 @@ class ConfigFile {
      *  - If value starts and ends with the quote character, ignore the outside quotes and treat the entire quoted string as the value
      */
     private function isValidLine($sLine) {
-        #################################################
-        # Remove any line comment before quoted value
-        #################################################
-        $iOpenQuotePos = $this->findOpenQuotePosition($sLine);
-        $iLineCommentPos = $this->findLineCommentPosition($sLine);
-
-        # if line comment starts before an open quote, then line comment is definitely not in a quoted value
-        if ($iLineCommentPos !== false && ($iOpenQuotePos === false || $iLineCommentPos < $iOpenQuotePos)) {
-            $sLine = substr($sLine, 0, $iLineCommentPos);
-        }
-        # if an open quote exists (and it's not in a comment), try to find it's closing quote
-        if ($iOpenQuotePos !== false) {
-        }
-
-        # check if delimiter exists
+        // FUNCTION TO BE REMOVED
     }
 
     /**
@@ -372,8 +365,10 @@ class ConfigFile {
 
         $sVarName = $this->getVariableName($sLine, $iLineNum);
         if ($sVarName !== false) {
-            echo "NAME: " . $sVarName . PHP_EOL;
+            echo "NAME         : " . $sVarName . PHP_EOL;
         }
+        $sQuotedValue = $this->hasQuotedValue($sLine, $iLineNum);
+        echo "QUOTED VALUE : " . ($sQuotedValue ? 'yes' : 'no') . PHP_EOL;
 
 
 #        # ignore line comments if they are in a quoted value string
