@@ -232,6 +232,24 @@ class ConfigFile {
     }
 
     /**
+     * Check if line has a value delimiter. Can only return true if the line
+     * also has a valid variable name.
+     * @param string $sLine The line to check against
+     * @return boolean Returns true if line has a delimiter after a valid variable name
+     */
+    private function hasValueDelimiter($sLine) {
+        $bHasDelim = false;
+        if ($this->hasValidVariableName($sLine)) {
+            $sEscDelim = preg_quote($this->sVarValDelimiter, '/');
+            $sDelimPattern = "/^[^{$sEscDelim}]+{$sEscDelim}/";
+            if (preg_match($sDelimPattern, $sLine) === 1) {
+                $bHasDelim = true;
+            }
+        }
+        return $bHasDelim;
+    }
+
+    /**
      * Checks if the line has a valid quoted value.
      *
      * @param string $sLine The line to check
@@ -258,7 +276,7 @@ class ConfigFile {
                 if ($sEscCommentStarts != "") { $sEscCommentStarts .= "|"; }
                 $sEscCommentStarts .= preg_quote($sCommentStart, '/');
             }
-            $sQuoteValPattern = "/^[^{$sEscDelim}]+{$sEscDelim}\s*{$sEscQuote}.*(?<!{$sEscEscape}){$sEscQuote}\s*(?:({$sEscCommentStarts}).*)?$/";
+            $sQuoteValPattern = "/^[^{$sEscDelim}]+{$sEscDelim}\s*{$sEscQuote}(?:{$sEscEscape}{$sEscQuote}|[^{$sEscQuote}])*(?<!{$sEscEscape}){$sEscQuote}\s*(?:({$sEscCommentStarts}).*)?$/";
 
             if (preg_match($sQuoteValPattern, $sLine) === 1) {
                 $bQuotedValue = true;
@@ -275,6 +293,45 @@ class ConfigFile {
         }
 
         return $bQuotedValue;
+    }
+
+    /**
+     * Check to see if line has unescaped quotes in the value.
+     * @param string $sLine The line to check
+     * @return boolean Returns true if line has unescaped quotes other than those used in a proper quoted value, false otherwise
+     */
+    private function hasBadQuotes($sLine, $iLineForError=null) {
+        $bBadQuotes = false;
+        # to check for bad quotes requires a valid variable name and delimiter
+        if ($this->hasValueDelimiter($sLine)) {
+            $sEscDelim = preg_quote($this->sVarValDelimiter, '/');
+            $sEscQuote = preg_quote($this->sQuoteChar, '/');
+            $sEscEscape = preg_quote($this->sEscapeChar, '/');
+            $sEscCommentStarts = "";
+            foreach ($this->aLineCommentStart as $sCommentStart) {
+                if ($sEscCommentStarts != "") { $sEscCommentStarts .= "|"; }
+                $sEscCommentStarts .= preg_quote($sCommentStart, '/');
+            }
+            
+            $sBadQuotePattern = "//";
+
+            //TODO
+        }
+        return $bBadQuotes;
+    }
+
+    private function getQuotedValue($sLine) {
+        //
+    }
+
+    private function getVariableValue($sLine, $iLineForError=null) {
+        $mValue = false;
+        if ($this->hasValueVariableName($sLine)) {
+            $mValue = true;
+            if ($this->hasValueDelimiter($sLine)) {
+               // 
+            }
+        }
     }
 
     /**
@@ -361,7 +418,7 @@ class ConfigFile {
      */
     private function processLine($iLineNum, $sLine) {
         // DEBUG
-        echo PHP_EOL . "PROCESSING LINE: " . $sLine . PHP_EOL;
+        echo PHP_EOL . "PROCESSING LINE " .($iLineNum+1).": {$sLine}" . PHP_EOL;
 
         $sVarName = $this->getVariableName($sLine, $iLineNum);
         if ($sVarName !== false) {
