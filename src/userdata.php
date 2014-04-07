@@ -122,8 +122,14 @@ class UserData {
         return $this->vValue;
     }
 
+    /**
+     * Specify exactly what values are allowed. Values that don't match these will be set to null.
+     * @param mixed Arguments are allowed values. If an argument is an array, then its
+     *      contents will also be set as allowed values.
+     */
     public function setAllowedValues() {
         $aArgs = func_get_args();
+        //TODO check each argument to see if it's an array, and if so, add it's contents to aAllowed
         $this->aAllowed = $aArgs;
         $this->enforceAllowedValues();
     }
@@ -251,16 +257,41 @@ class UserData {
     }
    
     /**
-     * 
+     * If length is outside bounds, then either truncate the value, or set value to null.
      */ 
     public function enforceLengthLimits($bTruncate=true) {
-        //
+        if (!$this->checkLengthLimits()) {
+            // If allowed, truncate length to acceptable lenth
+            if ($bTruncate) {
+                //TODO
+            }
+            // Not allowed to truncate, set value to null
+            else {
+                $this->vValue = null;
+            }
+        }
     }
 
+    /**
+     * Gets the current value as a string.
+     * @param string $sDefault If value doesn't exist or cannot be a string, return this value (default: null)
+     * @return string The string value if possible, otherwise $sDefault
+     */
     public function getString($sDefault=null) {
+        $sRet = $sDefault;
         // if exists and is not an array, return as string
+        if ($this->exists($this->getValue()) && !is_array($this->getValue())) {
+            // Force convert to string
+            $sRet = "" . $this->getValue();
+        }
+        return $sRet;
     }
 
+    /**
+     * Gets the current value as a integer. Value must be numeric.
+     * @param int $iDefault If value doesn't exist or isn't numeric, return this value (default: null)
+     * @return int The integer value is possible, otherwise $iDefault
+     */
     public function getInteger($iDefault=null) {
         $iVal = $iDefault;
         if (is_numeric($this->getValue())) {
@@ -270,11 +301,10 @@ class UserData {
     }
 
     /**
-     * Get a floating point representation of the loaded user data.
-     * If not a floating point, or if NaN, or if infinite, then returns fDefault
-     * 
-     * @param string $fDefault The default to return if value is not a float
-     * @return float|null The float value or fDefault (which defaults to null)
+     * Get a floating point representation of the loaded user data. Value must be numeric.
+     * If not a floating point, or if NaN, or if infinite, then returns $fDefault
+     * @param float $fDefault If value doesn't exist or isn't numeric, return this value (default: null)
+     * @return float The float value if possible, otherwise $fDefault
      */
     public function getFloat($fDefault=null) {
         $fVal = $fDefault;
@@ -287,8 +317,17 @@ class UserData {
         return $iVal;
     }
 
+    /**
+     * Get the loaded user data as an array. Value must be an array.
+     * @param array $aDefault If value doesn't exist or isn't an array, return this value (default: null)
+     * @return array The user data array if possible, otherwise $aDefault
+     */
     public function getArray($aDefault=null) {
-        // if value is array, return it, otherwise return default 
+        $aVal = $this->getValue();
+        if (!is_array($aVal)) {
+            $aVal = $aDefault;
+        }
+        return $aVal;
     }
 
     public function getFiles() {
@@ -298,6 +337,7 @@ class UserData {
     }
 
     public function exists() {
+        return UserData::exists($this->getValue());
     }
 
     public function fileExists() {
@@ -308,6 +348,7 @@ class UserData {
      * @return bool True if value is empty(); false otherwise
      */
     public function isEmpty() {
+        return empty($this->getValue());
     }
 
     /**
@@ -328,11 +369,16 @@ class UserData {
 
     /**
      * Check all arguments to this function to ensure they are not set to null
-     * @params unknown
+     * @params mixed
      * @return bool False if any argument is null, true otherwise 
      */
     public static function exists() {
         $aArgs = func_get_args();
+        $bExists = true;
+        foreach ($aArgs as $mArg) {
+            if ($mArg === null) { $bExists = false; }
+        }
+        return $bExists;
     }
 
     /**
@@ -341,6 +387,11 @@ class UserData {
      */
     public static function notEmpty() {
         $aArgs = func_get_args();
+        $bNotEmpty = true;
+        foreach ($aArgs as $mArg) {
+            if (empty($mArg)) { $bNotEmpty = false; }
+        }
+        return $bNotEmpty;
     }
 }
 
