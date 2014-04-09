@@ -48,7 +48,12 @@ class UserData {
     // Errors
     private $aErrors;
 
-    function __construct($sVarName, $sMethod="either") {
+    /**
+     * Create a user parsing and verification object
+     * @param string $sVarName The _POST or _GET array key
+     * @param string $sMethod If 'post','get' or 'file', only searches in the respective array. Otherwise searches all, post first, get second, file last.
+     */
+    function __construct($sVarName, $sMethod="any") {
         if (function_exists('get_magic_quotes_gpc') && get_magic_quotes_gpc())
             trigger_error('Please disable magic quotes.');
         $this->setName($sVarName);
@@ -64,14 +69,31 @@ class UserData {
         $this->aErrors = array();
     }
 
+    /**
+     * Set the variable name (array key) to retrieve from _POST, _GET, or _FILES
+     * @param string $sVarName The array key string
+     */
     private function setName($sVarName) {
         $this->sVarName = trim($sVarName);
     }
 
+    /**
+     * Get the variable name (array key)
+     */
+    private function getName() {
+        return $this-sVarName;
+    }
+
+    /**
+     * Set the method to use, if not 'post','get', or 'file'; then 'any' is set.
+     * @param string $sMethod The method to use
+     */
     private function setMethod($sMethod) {
         $sMethod = strtolower($sMethod);
-        if (!in_array($sMethod,array('get','post'))) {
-            $sMethod = 'either';
+        // catch common mistake
+        if ($sMethod == 'files') { $sMethod = 'file'; }
+        if (!in_array($sMethod,array('get','post','file'))) {
+            $sMethod = 'any';
         }
         $this->sMethod = $sMethod;
     }
@@ -82,38 +104,52 @@ class UserData {
      */
     private function retrieveFromMethod() {
         $vParseValue = null;
-        # check POST
-        if ( $this->sMethod !== "get" && isset($_POST[$this->sVarName]) ) {
+        # check _POST
+        if ( in_array($this->sMethod, array('post','any')) && isset($_POST[$this->sVarName]) ) {
             $vParseValue = $_POST[$this->sVarName];
         }
-        # check GET
-        elseif ( $this->sMethod !== "post" && isset($_GET[$this->sVarName]) ) {
+        # check _GET
+        elseif ( in_array($this->sMethod, array('get','any')) && isset($_GET[$this->sVarName]) ) {
             $vParseValue = $_GET[$this->sVarName];
         }
 
         setValue($vParseValue);
     }
 
+    /**
+     * Set the user value and enforce all rules on the new vlue
+     * @param mixed $vValue Value to set
+     */
     private function setValue($vValue) {
-        # Trim data of whitespace
-        if ($this->bTrimWhitespace == true) {
-            if (is_array($vValue)) {
-                foreach (array_keys($vValue) as $key) {
-                    $vValue[$key] = trim("{$vValue[$key]}");
+        if ($vValue === null) {
+            $this->vValue = null;
+        }
+        else {
+            # Trim data of whitespace
+            if ($this->bTrimWhitespace == true) {
+                if (is_array($vValue)) {
+                    foreach (array_keys($vValue) as $key) {
+                        $vValue[$key] = trim("{$vValue[$key]}");
+                    }
+                }
+                else {
+                    $vValue = trim("{$svValue}");
                 }
             }
-            else {
-                $vValue = trim("{$svValue}");
-            }
+            # Set value
+            $this->vValue = $vValue;
+            # Enforce rules
+            $this->enforceAllowedRange();
+            $this->enforceLengthLimits();
+            $this->enforceAllowedValues();
         }
-        # Set value
-        $this->vValue = $vValue;
-        # Enforce rules
-        $this->enforceAllowedRange();
-        $this->enforceLengthLimits();
-        $this->enforceAllowedValues();
     }
 
+    /**
+     * Get the value if not null, or $vDefault if value is null
+     * @param mixed What to return if value is null
+     * @return mixed The value or $vDefault
+     */
     private function getValue($vDefault=null) {
         /* If value isn't set, then attempt to find it */
         if ($this->vValue == null) {
@@ -129,8 +165,17 @@ class UserData {
      */
     public function setAllowedValues() {
         $aArgs = func_get_args();
-        //TODO check each argument to see if it's an array, and if so, add it's contents to aAllowed
-        $this->aAllowed = $aArgs;
+        $this->aAllowed = array();
+        for ($aArgs as $mArg) {
+            // check each argument to see if it's an array, and if so, add it's contents to aAllowed
+            if (is_array($mArg)) {
+                $this->aAllowed = array_merge($this->aAllowed, $mArg);
+            }
+            // otherwise just add the value to the allowed array
+            else {
+                $this->aAllowed[] = $mArg
+            }
+        }
         $this->enforceAllowedValues();
     }
 
@@ -226,7 +271,7 @@ class UserData {
 
     /**
      * Returns the length of the value as a string length.
-     * @return int
+     * @return int Length of value as a string
      */
     public function getLength() {
         $iLenCheck = 0;
@@ -240,12 +285,12 @@ class UserData {
     }
    
     /**
-     * Check if length of value is within allowed range.
+     * Check if length of value is within allowed range. If the value is an arrays, it always return true.
      * @return boolean True if length of value is permissible, false otherwise
      */ 
     public function checkLengthLimits() {
         if (is_array($this->vValue)) {
-            //TODO array handling?
+            return true;
         }
         else {
             $iLength = $this->getLength();
@@ -258,12 +303,13 @@ class UserData {
    
     /**
      * If length is outside bounds, then either truncate the value, or set value to null.
+     * @param boolean $bTruncate If set to true, will truncate values longer than the max allowed
      */ 
     public function enforceLengthLimits($bTruncate=true) {
         if (!$this->checkLengthLimits()) {
-            // If allowed, truncate length to acceptable lenth
-            if ($bTruncate) {
-                //TODO
+            // If allowed and not already too short, truncate length to acceptable length
+            if (($this->getLength() >= $this->iLengthMin) && $bTruncate) {
+                $this->vValue = substr("{$this->vValue}",0,$this->iLengthMax);
             }
             // Not allowed to truncate, set value to null
             else {
@@ -330,17 +376,64 @@ class UserData {
         return $aVal;
     }
 
+    /**
+     * Only files with the given file extensions will be allowed
+     */
+    public function setAllowedFileExtensions() {
+        $aArgs = func_get_args();
+        //TODO
+    }
+
+    /**
+     * Parse through $_FILES getting basic data for the file upload.
+     * - Checks if the uploaded file name is actually an array of files.
+     * - Loads any file errors into the aErrors array.
+     */
+    private function getFilesData() {
+    }
+
+    /**
+     * Get array of metadata for file(s) uploaded
+     */
     public function getFiles() {
+        //TODO
     }
 
+    /**
+     *
+     */
     public function getImages() {
+        //TODO
     }
 
+    /**
+     * Checks if a file upload exists.
+     * @param boolean $bExcludeErrors If false, will return true, even if the file uploaded has errors
+     * @return boolean Returns true if a file upload occured for the given name.
+     */
+    public function fileExists($bExcludeErrors=false) {
+        $bFile = false;
+        if (array_key_exists($this->getName(), $_FILES)) {
+            if ($bAllowErrors) {
+                $bFile = true;
+            }
+            else if (array_key_exists('error', $_FILES[$this->getName()])) {
+                // Ensure no errors happened
+                if ($_FILES[$this->getName()]['error'] == UPLOAD_ERR_OK) {
+                    $bFile = true;
+                }
+            }
+        }
+        return $bFile;
+    }
+
+    /**
+     * Checks that the 'get' or 'post' value of this variable is not null.
+     * Will return false if variable is a 'file'. Use fileExists() instead.
+     * @return boolean Returns true if value is null, false otherwise
+     */
     public function exists() {
         return UserData::exists($this->getValue());
-    }
-
-    public function fileExists() {
     }
 
     /**
