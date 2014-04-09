@@ -555,7 +555,7 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
      * Return an emulated query with values escaped and inserted as a string; query is NOT executed.
      *   It is possible that the query string returned does not exactly match the query that would be
      *   run as a prepared statement, as this only emulates the escaping that prepared statments would
-     *   perform.
+     *   perform. Support for using labeled values is limited and may not be accurate.
      * For assisting in debugging only.
      *
      * @param string $sQuery The query to run
@@ -565,6 +565,15 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
     public function queryReturn( $sQuery, $aValues=array(), $bSupressWarning=false) {
         $sReturn = "\n-- [WARNING] This only EMULATES what the prepared statement will run.\n\n";
         if ($bSupressWarning) $sReturn = "\n";
+
+        # Replace labels
+        foreach ($aValues as $mKey=>$mVal) {
+            if (is_string($mKey) && strlen($mKey) > 1 && $mKey[0] == ':') {
+                $sEscapedVal = $this->quoteSmart($mVal);
+                $sQuery = str_replace($mKey,$sEscapedVal,$sQuery);
+                unset($aValues[$mKey]);
+            }
+        }
 
         # Catch Array Values and Expand them
         $aExpandedValues = array();
@@ -579,9 +588,9 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
         }
         $aValues = $aExpandedValues;
 
-        # escape values
-        for ($i = 0; $i < count($aValues); $i++) {
-            $aValues[$i] = $this->quoteSmart($aValues[$i]);
+        # Escape values
+        foreach ($aValues as $mKey=>$mVal) {
+            $aValues[$mKey] = $this->quoteSmart($mVal);
         }
 
         # Replace question marks with sprintf specifiers
@@ -598,7 +607,7 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
      * Dump an emulated query with values escaped and inserted into an HTML stream; query is NOT executed.
      *   It is possible that the query string returned does not exactly match the query that would be
      *   run as a prepared statement, as this only emulates the escaping that prepared statments would
-     *   perform.
+     *   perform. Support for using labeled values is limited and may not be accurate.
      * For assisting in debugging only.
      *
      * @param string $sQuery The query to run
