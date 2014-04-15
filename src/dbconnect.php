@@ -634,13 +634,12 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
 
         $aRow = $this->queryRow($sQuery, array(), true, PDO::FETCH_NUM);
 
-        preg_match_all('/\'(.*?)\'/', $aRow[1], $aEnums);
-        if(!empty($aEnums[1])) {
+        preg_match_all('/\'(.*?)\'/', $aRow[1], $aMatchEnums);
+        if(!empty($aMatchEnums[1])) {
             // organize values based on their mysql order
-            foreach($aEnums[1] as $mkey => $mval) $aEnums[$mkey+1] = $mval;
-            return $aEnums;
+            foreach($aMatchEnums[1] as $mkey => $mval) { $aEnums[$mkey+1] = $mval; }
         }
-        else return array();
+        return $aEnums;
     }
 
     /**
