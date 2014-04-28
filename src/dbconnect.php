@@ -315,6 +315,8 @@ class DBConnect {
     public function statementReturn($cStatement) {
         ob_start();
         $cStatement->debugDumpParams();
+        echo "FullSQL:" . PHP_EOL;
+        echo $cStatement->queryString . PHP_EOL;
         return ob_get_clean();
     }
 
