@@ -145,10 +145,10 @@ class DBConnect {
      * @return boolean Returns true if a connection to the database exists; false otherwise
      */
     public function connectionExists() {
-    	if ($this->cInstance === null) {
-    		return false;
-    	}
-    	return true;
+        if ($this->cInstance === null) {
+            return false;
+        }
+        return true;
     }
 
     /**

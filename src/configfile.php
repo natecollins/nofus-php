@@ -36,18 +36,17 @@ or implied, of Nathan Collins.
 # Pound sign is a line comment
 # Variable assignment is done with an "=" sign
 var1 = 42
-var2 = 94       # comments can appear at the end of a line
+var2 = 94                                           # comments can appear at the end of a line
 name = Example
-longname = John Doe     # would parse as "John Doe"
-name2 = " Jane Doe "    # to prevent whitespace trimming, add double quotes; would parse as " Jane Doe "
-name3 = 'Jerry'         # single quotes parse as normal characters; would parse as "'Jerry'"
-words = "Quotes \"inside\" a string"                  # can use double quotes inside double quotes, but must be escaped
+longname = John Doe                                 # would parse as "John Doe"
+name2 = " Jane Doe "                                # to prevent whitespace trimming, add double quotes; would parse as " Jane Doe "
+name3 = 'Jerry'                                     # single quotes parse as normal characters; would parse as "'Jerry'"
+words = "Quotes \"inside\" a string"                # can use double quotes inside double quotes, but must be escaped
 specials = "This has #, \, and = inside of it"      # can use special characters in a quoted value
-tricky = "half-quoted         # unmatched double quote parses as "\"half-quoted"
 badquoted = this is "NOT" a quoted string           # value doesn't start with a quote, so quotes are treated as normal chars
 oddquote = "not a quoted value" cause extra         # value will parse as: "\"not a quoted value\" cause extra"
-novalue =                     # values can be left blank
-enable_keys                   # no assignment delimiter given (aka '='), variable is assigned boolean value true
+novalue =                                           # values can be left blank
+enable_keys                                         # no assignment delimiter given (aka '='), variable is assigned boolean value true
 
 // Alternate line comment style
 
@@ -62,9 +61,9 @@ white = 6
 clear = 8
 yellow = 1
 
-[sql.maria]      # scopes can have sub-scopes as well
+[sql.maria]                         # scopes can have sub-scopes as well
 auth.server = sql.example.com
-auth.user = apache      # e.g. full scope is: sql.maria.auth.user
+auth.user = apache                  # e.g. full scope is: sql.maria.auth.user
 auth.pw = secure
 auth.db = website
 
@@ -214,24 +213,6 @@ class ConfigFile {
     }
 
     /**
-     * Find the next unescaped quote character and return it's position in the provided
-     * line segment
-     * @param string $sLinePart A line or line segment
-     * @return int|false The position of the unescaped quote character, or false if not found
-     */
-    private function findNextQuotePosition($sLinePart) {
-        $sRegexQuoteChar = preg_quote($this->sQuoteChar, "/");
-        $sRegexEscapeChar = preg_quote($this->sEscapeChar, "/");
-        $sCloseQuotePattern = "/[^{$sRegexEscapeChar}]?{$sRegexQuoteChar}/";
-        $iMatchPos = false;
-        # find next double quote that isn't escaped
-        if (preg_match($sCloseQuotePattern,$sLine,$aMatches,PREG_OFFSET_CAPTURE)) {
-            $iMatchPos = $aMatches[0][1];
-        }
-        return $iMatchPos;
-    }
-
-    /**
      * Check if line has a value delimiter. Can only return true if the line
      * also has a valid variable name.
      * @param string $sLine The line to check against
@@ -282,9 +263,8 @@ class ConfigFile {
                 $bQuotedValue = true;
             }
 
-            # if not a valid quoted value, but has a valid open quote, add an error
             if ($bQuotedValue == false && $iLineForError !== null) {
-                # check if open quote is valid
+                # if not a valid quoted value, but has a valid open quote, add an error
                 $sOpenQuotePattern = "/^[^{$sEscDelim}]+{$sEscDelim}\s*{$sEscQuote}/";
                 if (preg_match($sOpenQuotePattern, $sLine) === 1) {
                     $this->addError($iLineForError, "Open quotes without matching close quotes.");
@@ -296,14 +276,16 @@ class ConfigFile {
     }
 
     /**
-     * Check to see if line has unescaped quotes in the value.
-     * @param string $sLine The line to check
-     * @return boolean Returns true if line has unescaped quotes other than those used in a proper quoted value, false otherwise
+     * Returns the content from inside a properly quoted value string given a whole line.
+     * The content from inside the string may still have escaped values.
+     * @param string $sLine The line to operate from
+     * @return string The value between the openening and closed quote of the value (does NOT include open/closing quotes); on failure, returns empty string.
      */
-    private function hasBadQuotes($sLine, $iLineForError=null) {
-        $bBadQuotes = false;
-        # to check for bad quotes requires a valid variable name and delimiter
-        if ($this->hasValueDelimiter($sLine)) {
+    private function getQuotedValue($sLine) {
+        $sValue = "";
+
+        if ($this->hasValidVariableName($sLine)) {
+            # at this point, we know the variable name is valid
             $sEscDelim = preg_quote($this->sVarValDelimiter, '/');
             $sEscQuote = preg_quote($this->sQuoteChar, '/');
             $sEscEscape = preg_quote($this->sEscapeChar, '/');
@@ -312,26 +294,50 @@ class ConfigFile {
                 if ($sEscCommentStarts != "") { $sEscCommentStarts .= "|"; }
                 $sEscCommentStarts .= preg_quote($sCommentStart, '/');
             }
-            
-            $sBadQuotePattern = "//";
+            #                   ---- NAME --------- DELIMITER ---- OPEN QUOTE --- ALLOW ESCAPED QUOTES --- NO UNESCAPED QUOTES -- NON ESCAPED CLOSE QUOTE ------ ALLOW COMMENDS AFTER ----
+            $sQuoteValPattern = "/^[^{$sEscDelim}]+{$sEscDelim}\s*{$sEscQuote}((?:{$sEscEscape}{$sEscQuote}|[^{$sEscQuote}])*)(?<!{$sEscEscape}){$sEscQuote}\s*(?:({$sEscCommentStarts}).*)?$/";
 
-            //TODO
-        }
-        return $bBadQuotes;
-    }
-
-    private function getQuotedValue($sLine) {
-        //
-    }
-
-    private function getVariableValue($sLine, $iLineForError=null) {
-        $mValue = false;
-        if ($this->hasValueVariableName($sLine)) {
-            $mValue = true;
-            if ($this->hasValueDelimiter($sLine)) {
-               // 
+            if (preg_match($sQuoteValPattern, $sLine, $aMatches) === 1) {
+                $sValue = $aMatches[1];
             }
         }
+
+        return $sValue;
+    }
+
+    /**
+     * Get the processed value for the given line. Handles quotes, comments, and unescaping characters.
+     * @param string $sLine The line to operate from
+     * @param int|null $sLineForError If a line number is provided, will add error messages if invalidly quoted
+     * @return string The value processed variable value
+     */
+    private function getVariableValue($sLine, $iLineForError=null) {
+        $mValue = false;
+        if ($this->hasValidVariableName($sLine)) {
+            $mValue = true;
+            if ($this->hasValueDelimiter($sLine)) {
+                $mValue = "";
+                if ($this->hasQuotedValue($sLine, $iLineForError)) {
+                    # getting the quoted value will strip off comments automatically
+                    $mValue = $this->getQuotedValue($sLine);
+                }
+                else {
+                    $mValue = $this->getPostDelimiter($sLine);
+                    # handle comments
+                    $iCommentStart = $this->findLineCommentPosition($mValue);
+                    if ($iCommentStart !== false) {
+                        $mValue = substr($mValue, 0, $iCommentStart);
+                    }
+                    $mValue = trim($mValue);
+                }
+                # handle escaped chars
+                $sEscEscape = preg_quote($this->sEscapeChar, '/');
+                $sUnescapePattern = "/{$sEscEscape}(.)/";
+                $sUnescapeReplace = '${1}';
+                $mValue = preg_replace($sUnescapePattern, $sUnescapeReplace, $mValue);
+            }
+        }
+        return $mValue;
     }
 
     /**
@@ -353,6 +359,33 @@ class ConfigFile {
         # if the delimiter exists (non-commented)
         if ($iAssignDelimPos !== false) {
             $sLine = substr($sLine, 0, $iAssignDelimPos);
+        }
+
+        # trim off any whitespace
+        $sLine = trim($sLine);
+
+        return $sLine;
+    }
+
+    /**
+     * Returns the trimmed string after any delimiter on a line.
+     *  - If no delimiter is present (or if delimiter is commented out) returns empty string
+     *  - Does NOT remove comments from post delimiter content
+     * @param string $sLine The line to operate from
+     * @return string The value after any delimiter
+     */
+    private function getPostDelimiter($sLine) {
+        $iAssignDelimPos = $this->findAssignmentDelimiterPosition($sLine);
+        $iLineCommentPos = $this->findLineCommentPosition($sLine);
+
+        # if comment starts before the delimiter, then the delimiter is commented out; no post delim content
+        if ($iLineCommentPos !== false && ($iAssignDelimPos === false || $iLineCommentPos < $iAssignDelimPos) ) {
+            $sLine = "";
+        }
+
+        # if the delimiter exists (non-commented)
+        if ($iAssignDelimPos !== false) {
+            $sLine = substr($sLine, 1 + $iAssignDelimPos);
         }
 
         # trim off any whitespace
@@ -399,21 +432,6 @@ class ConfigFile {
     }
 
     /**
-     * Check if the line is in a valid format.
-     * Option 1:
-     *  - Line has no variable or value name; line is blank or just a comment.
-     * Option 2:
-     *  - Line has a variable name, but no value due to no assignment delimiter.
-     *  - Variable is only made of allowed characters (a-zA-Z0-9_-) plus scope character.
-     * Option 3:
-     *  - Line has a variable name plus an optional value after the assignment delimiter.
-     *  - If value starts and ends with the quote character, ignore the outside quotes and treat the entire quoted string as the value
-     */
-    private function isValidLine($sLine) {
-        // FUNCTION TO BE REMOVED
-    }
-
-    /**
      * Parse a line
      */
     private function processLine($iLineNum, $sLine) {
@@ -422,37 +440,13 @@ class ConfigFile {
 
         $sVarName = $this->getVariableName($sLine, $iLineNum);
         if ($sVarName !== false) {
-            echo "NAME         : " . $sVarName . PHP_EOL;
+            echo "NAME            : " . $sVarName . PHP_EOL;
         }
-        $sQuotedValue = $this->hasQuotedValue($sLine, $iLineNum);
-        echo "QUOTED VALUE : " . ($sQuotedValue ? 'yes' : 'no') . PHP_EOL;
+        $sQuotedValue = $this->hasQuotedValue($sLine);
+        echo "IS QUOTED VALUE : " . ($sQuotedValue ? 'yes' : 'no') . PHP_EOL;
 
+        echo "VALUE           : " . $this->getVariableValue($sLine, $iLineNum) . PHP_EOL;
 
-#        # ignore line comments if they are in a quoted value string
-#        $iLineCommendSearchStart = 0;
-#        # check if quoted value string exists (after assignment delimiter, but before any line comment start)
-#        $iAssignDelimPos = $this->findAssignmentDelimiterPosition($sLine);
-#        $iOpenQuotePos = $this->findOpenQuotePosition($sLine);
-#        $iLineCommentPos = $this->findLineCommentPosition($sLine);
-#
-#        # the assignment delimiter and open quote must not be in a line comment AND the quote must come after the delimiter
-#        if ($iLineCommentPos > $iAssignDelimPos && $iLineCommentPos > $iOpenQuotePos && $iAssignDelimPos < $iOpoenQuotePos) {}
-#        # check if quoted string has a matching end quote (non-escaped)
-#        # if quoted string value exists, then do not check for line comments until after the close quote
-#        //TODO
-#        
-#
-#        # check for and remove line comment data
-#        $iLineCommentPos = $this->findLineCommentPosition($sLine, $iLineCommentSearchStart);
-#        if ($iLineCommentPos !== false) {
-#            $sLine = substr($sLine, 0, $iLineCommentPos);
-#        }
-
-        # check for assignment delimiter
-        # split on assignment delimiter
-        # trim data (both variable and value)
-        # if double-quoted on both ends, trim quotes from value data
-        # un-escape remaining
 
     }
 
