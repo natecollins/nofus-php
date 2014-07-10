@@ -98,6 +98,9 @@ if ($cf->load()) {
 
 */
 
+# Include guard, for people who can't remember to use '_once'
+if (!defined('__CONFIGFILE_GUARD__')) {
+    define('__CONFIGFILE_GUARD__',true);
 
 /**
  * Handles parsing of config files.
@@ -572,5 +575,7 @@ class ConfigFile {
     }
 
 }
+
+} // Include guard end
 
 ?>
