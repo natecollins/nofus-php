@@ -42,7 +42,7 @@ longname = John Doe                                 # would parse as "John Doe"
 name2 = " Jane Doe "                                # to prevent whitespace trimming, add double quotes; would parse as " Jane Doe "
 name3 = 'Jerry'                                     # single quotes parse as normal characters; would parse as "'Jerry'"
 words = "Quotes \"inside\" a string"                # can use double quotes inside double quotes, but must be escaped
-specials = "This has #, \, and = inside of it"      # can use special characters in a quoted value
+specials = "This has #, \\, and = inside of it"     # can use special characters in a quoted value (escape character must be escaped)
 badquoted = this is "NOT" a quoted string           # value doesn't start with a quote, so quotes are treated as normal chars
 oddquote = "not a quoted value" cause extra         # value will parse as: "\"not a quoted value\" cause extra"
 novalue =                                           # values can be left blank
@@ -101,8 +101,6 @@ if ($cf->load()) {
 
 /**
  * Handles parsing of config files.
- * 
- * Files can be parsed generically, or a ruleset and parse error messages can be predefined.
  */
 class ConfigFile {
     // File Info
@@ -496,7 +494,9 @@ class ConfigFile {
     }
 
     /**
-     * Parse a line.
+     * Process a line into the store values array.
+     * @param int $iLineNum The line number processing (for use in error reporting)
+     * @param string $sLine The full line from the file to process
      */
     private function processLine($iLineNum, $sLine) {
         if ($this->isValidScopeDefinition($sLine)) {
@@ -511,6 +511,11 @@ class ConfigFile {
         }
     }
 
+    /**
+     * Store an error for retrieval with errors() function.
+     * @param int $iLine The line on which the error occured (0 based count)
+     * @param string $sMessage The error message associated with the line
+     */
     private function addError($iLine, $sMessage) {
         $iLine++;   // due to base 0 line indexing
         $this->aErrors[] = "ConfigFile parse error on line {$iLine}: {$sMessage}";
@@ -559,7 +564,8 @@ class ConfigFile {
     }
 
     /**
-     *
+     * Get all name/value pairs that have been parsed from the file.
+     * @return array An associative array containing name=>value pairs will full scope names.
      */
     public function getAll() {
         return $this->aValues;
