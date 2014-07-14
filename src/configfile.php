@@ -36,18 +36,17 @@ or implied, of Nathan Collins.
 # Pound sign is a line comment
 # Variable assignment is done with an "=" sign
 var1 = 42
-var2 = 94       # comments can appear at the end of a line
+var2 = 94                                           # comments can appear at the end of a line
 name = Example
-longname = John Doe     # would parse as "John Doe"
-name2 = " Jane Doe "    # to prevent whitespace trimming, add double quotes; would parse as " Jane Doe "
-name3 = 'Jerry'         # single quotes parse as normal characters; would parse as "'Jerry'"
-words = "Quotes \"inside\" a string"                  # can use double quotes inside double quotes, but must be escaped
-specials = "This has #, \, and = inside of it"      # can use special characters in a quoted value
-tricky = "half-quoted         # unmatched double quote parses as "\"half-quoted"
+longname = John Doe                                 # would parse as "John Doe"
+name2 = " Jane Doe "                                # to prevent whitespace trimming, add double quotes; would parse as " Jane Doe "
+name3 = 'Jerry'                                     # single quotes parse as normal characters; would parse as "'Jerry'"
+words = "Quotes \"inside\" a string"                # can use double quotes inside double quotes, but must be escaped
+specials = "This has #, \\, and = inside of it"     # can use special characters in a quoted value (escape character must be escaped)
 badquoted = this is "NOT" a quoted string           # value doesn't start with a quote, so quotes are treated as normal chars
 oddquote = "not a quoted value" cause extra         # value will parse as: "\"not a quoted value\" cause extra"
-novalue =                     # values can be left blank
-enable_keys                   # no assignment delimiter given (aka '='), variable is assigned boolean value true
+novalue =                                           # values can be left blank
+enable_keys                                         # no assignment delimiter given (aka '='), variable is assigned boolean value true
 
 // Alternate line comment style
 
@@ -62,9 +61,9 @@ white = 6
 clear = 8
 yellow = 1
 
-[sql.maria]      # scopes can have sub-scopes as well
+[sql.maria]                         # scopes can have sub-scopes as well (and comments)
 auth.server = sql.example.com
-auth.user = apache      # e.g. full scope is: sql.maria.auth.user
+auth.user = apache                  # e.g. full scope is: sql.maria.auth.user
 auth.pw = secure
 auth.db = website
 
@@ -74,6 +73,7 @@ auth.db = website
 
 my var = my val         # spaces are not allowed in variable identifiers
 []#.$ = something       # only a-zA-Z0-9_- are allow for variable identifier (. is allowed for scope)
+[my.scope]  = val       # scopes cannot have values
 a..b = c                # scopes cannot be blank
 .d. = e                 # start and end scope can't be blank
 
@@ -98,27 +98,34 @@ if ($cf->load()) {
 
 */
 
+# Include guard, for people who can't remember to use '_once'
+if (!defined('__CONFIGFILE_GUARD__')) {
+    define('__CONFIGFILE_GUARD__',true);
 
 /**
  * Handles parsing of config files.
- * 
- * Files can be parsed generically, or a ruleset and parse error messages can be predefined.
  */
 class ConfigFile {
     // File Info
     private $sFilePath;
 
-    // Parse values
+    // Static parse values
     private $aLineCommentStart;         # multiples allowed
     private $sVarValDelimiter;          # first instance of this is the variable/value delmiiter
     private $sScopeDelimiter;           # character(s) that divides scope levels
     private $sQuoteChar;                # the quote character
     private $sEscapeChar;               # the escape character
 
+    // Dynamic parse values
+    private $sCurrentScope;
+
     // Errors
     private $aErrors;
 
-    function __construct($sFileToOpen) {
+    // Parsed content
+    private $aValues;
+
+    function __construct($sFileToOpen=null) {
         $this->sFilePath = null;
 
         $this->aLineCommentStart = array('#','//');
@@ -127,7 +134,10 @@ class ConfigFile {
         $this->sQuoteChar = "\"";
         $this->sEscapeChar = "\\";
 
+        $this->sCurrentScope = "";
+
         $this->aErrors = array();
+        $this->aValues = array();
 
         # Parse sFileToOpen, if null, then this is a scope query result
         if ($sFileToOpen != null && is_string($sFileToOpen)) {
@@ -142,7 +152,11 @@ class ConfigFile {
      * @param array $aDefaults An array of "scope.variable"=>"default value" pairs.
      */
     public function preload($aDefaults) {
-        //TODO
+        foreach($aDefaults as $sName=>$sValue) {
+            if (!array_key_exists($sName,$this->aValues)) {
+                $this->aValues[$sName] = $sValue;
+            }
+        }
     }
 
     /**
@@ -214,21 +228,50 @@ class ConfigFile {
     }
 
     /**
-     * Find the next unescaped quote character and return it's position in the provided
-     * line segment
-     * @param string $sLinePart A line or line segment
-     * @return int|false The position of the unescaped quote character, or false if not found
+     * Given a line, check to see if it is a valid scope definition
+     * @param string $sLine The line to check
+     * @return boolean Returns true if well formed and valid, false otherwise
      */
-    private function findNextQuotePosition($sLinePart) {
-        $sRegexQuoteChar = preg_quote($this->sQuoteChar, "/");
-        $sRegexEscapeChar = preg_quote($this->sEscapeChar, "/");
-        $sCloseQuotePattern = "/[^{$sRegexEscapeChar}]?{$sRegexQuoteChar}/";
-        $iMatchPos = false;
-        # find next double quote that isn't escaped
-        if (preg_match($sCloseQuotePattern,$sLine,$aMatches,PREG_OFFSET_CAPTURE)) {
-            $iMatchPos = $aMatches[0][1];
+    private function isValidScopeDefinition($sLine) {
+        $sValidCharSet = "a-zA-Z0-9_\-";
+        $sScopeChar = preg_quote($this->sScopeDelimiter, "/");
+        $sEscCommentStarts = "";
+        foreach ($this->aLineCommentStart as $sCommentStart) {
+            if ($sEscCommentStarts != "") { $sEscCommentStarts .= "|"; }
+            $sEscCommentStarts .= preg_quote($sCommentStart, '/');
         }
-        return $iMatchPos;
+        #                -------------- NAME CHARS -------- SCOPE CHAR --- NAME CHARS -------------------- ALLOW COMMENTS AFTER -----
+        $sScopePattern = "/^\s*\[\s*(?:[{$sValidCharSet}]+(?:{$sScopeChar}[{$sValidCharSet}]+)*)\s*\]\s*(?:({$sEscCommentStarts}).*)?$/";
+
+        # default to not a scope
+        $bValid = false;
+        # check for validity
+        if (preg_match($sScopePattern, $sLine) === 1) {
+            $bValid = true;
+        }
+
+        return $bValid;
+    }
+
+    /**
+     * Set the current scope (assumes the line is a scope definition) while parsing the file. Does nothing if line is not a scope definition.
+     * @param string $sLine The line to get the scope from
+     */
+    private function setScope($sLine) {
+        $sValidCharSet = "a-zA-Z0-9_\-";
+        $sScopeChar = preg_quote($this->sScopeDelimiter, "/");
+        $sEscCommentStarts = "";
+        foreach ($this->aLineCommentStart as $sCommentStart) {
+            if ($sEscCommentStarts != "") { $sEscCommentStarts .= "|"; }
+            $sEscCommentStarts .= preg_quote($sCommentStart, '/');
+        }
+        #                ------------ NAME CHARS -------- SCOPE CHAR --- NAME CHARS -------------------- ALLOW COMMENTS AFTER -----
+        $sScopePattern = "/^\s*\[\s*([{$sValidCharSet}]+(?:{$sScopeChar}[{$sValidCharSet}]+)*)\s*\]\s*(?:({$sEscCommentStarts}).*)?$/";
+
+        # check for invalid characters
+        if (preg_match($sScopePattern, $sLine, $aMatches) === 1) {
+            $this->sCurrentScope = $aMatches[1];
+        }
     }
 
     /**
@@ -282,12 +325,11 @@ class ConfigFile {
                 $bQuotedValue = true;
             }
 
-            # if not a valid quoted value, but has a valid open quote, add an error
             if ($bQuotedValue == false && $iLineForError !== null) {
-                # check if open quote is valid
+                # if not a valid quoted value, but has a valid open quote, add an error
                 $sOpenQuotePattern = "/^[^{$sEscDelim}]+{$sEscDelim}\s*{$sEscQuote}/";
                 if (preg_match($sOpenQuotePattern, $sLine) === 1) {
-                    $this->addError($iLineForError, "Open quotes without matching close quotes.");
+                    $this->addError($iLineForError, "Open quotes with missing or invalid close quotes.");
                 }
             }
         }
@@ -296,14 +338,16 @@ class ConfigFile {
     }
 
     /**
-     * Check to see if line has unescaped quotes in the value.
-     * @param string $sLine The line to check
-     * @return boolean Returns true if line has unescaped quotes other than those used in a proper quoted value, false otherwise
+     * Returns the content from inside a properly quoted value string given a whole line.
+     * The content from inside the string may still have escaped values.
+     * @param string $sLine The line to operate from
+     * @return string The value between the openening and closed quote of the value (does NOT include open/closing quotes); on failure, returns empty string.
      */
-    private function hasBadQuotes($sLine, $iLineForError=null) {
-        $bBadQuotes = false;
-        # to check for bad quotes requires a valid variable name and delimiter
-        if ($this->hasValueDelimiter($sLine)) {
+    private function getQuotedValue($sLine) {
+        $sValue = "";
+
+        if ($this->hasValidVariableName($sLine)) {
+            # at this point, we know the variable name is valid
             $sEscDelim = preg_quote($this->sVarValDelimiter, '/');
             $sEscQuote = preg_quote($this->sQuoteChar, '/');
             $sEscEscape = preg_quote($this->sEscapeChar, '/');
@@ -312,26 +356,50 @@ class ConfigFile {
                 if ($sEscCommentStarts != "") { $sEscCommentStarts .= "|"; }
                 $sEscCommentStarts .= preg_quote($sCommentStart, '/');
             }
-            
-            $sBadQuotePattern = "//";
+            #                   ---- NAME --------- DELIMITER ---- OPEN QUOTE --- ALLOW ESCAPED QUOTES --- NO UNESCAPED QUOTES -- NON ESCAPED CLOSE QUOTE ------ ALLOW COMMENTS AFTER ----
+            $sQuoteValPattern = "/^[^{$sEscDelim}]+{$sEscDelim}\s*{$sEscQuote}((?:{$sEscEscape}{$sEscQuote}|[^{$sEscQuote}])*)(?<!{$sEscEscape}){$sEscQuote}\s*(?:({$sEscCommentStarts}).*)?$/";
 
-            //TODO
-        }
-        return $bBadQuotes;
-    }
-
-    private function getQuotedValue($sLine) {
-        //
-    }
-
-    private function getVariableValue($sLine, $iLineForError=null) {
-        $mValue = false;
-        if ($this->hasValueVariableName($sLine)) {
-            $mValue = true;
-            if ($this->hasValueDelimiter($sLine)) {
-               // 
+            if (preg_match($sQuoteValPattern, $sLine, $aMatches) === 1) {
+                $sValue = $aMatches[1];
             }
         }
+
+        return $sValue;
+    }
+
+    /**
+     * Get the processed value for the given line. Handles quotes, comments, and unescaping characters.
+     * @param string $sLine The line to operate from
+     * @param int|null $sLineForError If a line number is provided, will add error messages if invalidly quoted
+     * @return string The value processed variable value
+     */
+    private function getVariableValue($sLine, $iLineForError=null) {
+        $mValue = false;
+        if ($this->hasValidVariableName($sLine)) {
+            $mValue = true;
+            if ($this->hasValueDelimiter($sLine)) {
+                $mValue = "";
+                if ($this->hasQuotedValue($sLine, $iLineForError)) {
+                    # getting the quoted value will strip off comments automatically
+                    $mValue = $this->getQuotedValue($sLine);
+                }
+                else {
+                    $mValue = $this->getPostDelimiter($sLine);
+                    # handle comments
+                    $iCommentStart = $this->findLineCommentPosition($mValue);
+                    if ($iCommentStart !== false) {
+                        $mValue = substr($mValue, 0, $iCommentStart);
+                    }
+                    $mValue = trim($mValue);
+                }
+                # handle escaped chars
+                $sEscEscape = preg_quote($this->sEscapeChar, '/');
+                $sUnescapePattern = "/{$sEscEscape}(.)/";
+                $sUnescapeReplace = '${1}';
+                $mValue = preg_replace($sUnescapePattern, $sUnescapeReplace, $mValue);
+            }
+        }
+        return $mValue;
     }
 
     /**
@@ -362,23 +430,53 @@ class ConfigFile {
     }
 
     /**
+     * Returns the trimmed string after any delimiter on a line.
+     *  - If no delimiter is present (or if delimiter is commented out) returns empty string
+     *  - Does NOT remove comments from post delimiter content
+     * @param string $sLine The line to operate from
+     * @return string The value after any delimiter
+     */
+    private function getPostDelimiter($sLine) {
+        $iAssignDelimPos = $this->findAssignmentDelimiterPosition($sLine);
+        $iLineCommentPos = $this->findLineCommentPosition($sLine);
+
+        # if comment starts before the delimiter, then the delimiter is commented out; no post delim content
+        if ($iLineCommentPos !== false && ($iAssignDelimPos === false || $iLineCommentPos < $iAssignDelimPos) ) {
+            $sLine = "";
+        }
+
+        # if the delimiter exists (non-commented)
+        if ($iAssignDelimPos !== false) {
+            $sLine = substr($sLine, 1 + $iAssignDelimPos);
+        }
+
+        # trim off any whitespace
+        $sLine = trim($sLine);
+
+        return $sLine;
+    }
+
+    /**
      * Checks if the line has a variable name and that it's valid
      * @param string $sLine The line to check
      * @param int|null $iLineForError If provided, will add an error on invalid variable name characters
      * @return boolean Returns true if variable name exists and is valid, false otherwise
      */
     private function hasValidVariableName($sLine, $iLineForError=null) {
+        $sValidCharSet = "a-zA-Z0-9_\-";
+        $sScopeChar = preg_quote($this->sScopeDelimiter, "/");
+        $sVarNamePattern = "/^\s*(?:[{$sValidCharSet}]+(?:{$sScopeChar}[{$sValidCharSet}]+)*)\s*$/";
         $sVarNameCheck = $this->getPreDelimiter($sLine);
-        $sValidCharSet = "a-zA-Z0-9_\-" . preg_quote($this->sScopeDelimiter, "/");
 
-        # an empty variable name is not valid
-        $bValid = ($sVarNameCheck !== "");
+        # default to not a valid name
+        $bValid = false;
         # check for invalid characters
-        if (preg_match("/[^{$sValidCharSet}]/", $sVarNameCheck)) {
-            $bValid = false;
-            if ($iLineForError !== null) {
-                $this->addError($iLineForError, "Invalid variable name.");
-            }
+        if (preg_match($sVarNamePattern, $sVarNameCheck) === 1) {
+            $bValid = true;
+        }
+        # don't error for empty line
+        else if ($sVarNameCheck !== "" && $iLineForError !== null) {
+            $this->addError($iLineForError, "Invalid variable name.");
         }
 
         return $bValid;
@@ -399,63 +497,28 @@ class ConfigFile {
     }
 
     /**
-     * Check if the line is in a valid format.
-     * Option 1:
-     *  - Line has no variable or value name; line is blank or just a comment.
-     * Option 2:
-     *  - Line has a variable name, but no value due to no assignment delimiter.
-     *  - Variable is only made of allowed characters (a-zA-Z0-9_-) plus scope character.
-     * Option 3:
-     *  - Line has a variable name plus an optional value after the assignment delimiter.
-     *  - If value starts and ends with the quote character, ignore the outside quotes and treat the entire quoted string as the value
+     * Process a line into the store values array.
+     * @param int $iLineNum The line number processing (for use in error reporting)
+     * @param string $sLine The full line from the file to process
      */
-    private function isValidLine($sLine) {
-        // FUNCTION TO BE REMOVED
+    private function processLine($iLineNum, $sLine) {
+        if ($this->isValidScopeDefinition($sLine)) {
+            $this->setScope($sLine);
+        }
+        else {
+            $sVarName = $this->getVariableName($sLine, $iLineNum);
+            if ($sVarName !== false) {
+                $sAdjustedName = $this->sCurrentScope . ($this->sCurrentScope === "" ? "" : $this->sScopeDelimiter) . $sVarName;
+                $this->aValues[$sAdjustedName] = $this->getVariableValue($sLine, $iLineNum);
+            }
+        }
     }
 
     /**
-     * Parse a line
+     * Store an error for retrieval with errors() function.
+     * @param int $iLine The line on which the error occured (0 based count)
+     * @param string $sMessage The error message associated with the line
      */
-    private function processLine($iLineNum, $sLine) {
-        // DEBUG
-        echo PHP_EOL . "PROCESSING LINE " .($iLineNum+1).": {$sLine}" . PHP_EOL;
-
-        $sVarName = $this->getVariableName($sLine, $iLineNum);
-        if ($sVarName !== false) {
-            echo "NAME         : " . $sVarName . PHP_EOL;
-        }
-        $sQuotedValue = $this->hasQuotedValue($sLine, $iLineNum);
-        echo "QUOTED VALUE : " . ($sQuotedValue ? 'yes' : 'no') . PHP_EOL;
-
-
-#        # ignore line comments if they are in a quoted value string
-#        $iLineCommendSearchStart = 0;
-#        # check if quoted value string exists (after assignment delimiter, but before any line comment start)
-#        $iAssignDelimPos = $this->findAssignmentDelimiterPosition($sLine);
-#        $iOpenQuotePos = $this->findOpenQuotePosition($sLine);
-#        $iLineCommentPos = $this->findLineCommentPosition($sLine);
-#
-#        # the assignment delimiter and open quote must not be in a line comment AND the quote must come after the delimiter
-#        if ($iLineCommentPos > $iAssignDelimPos && $iLineCommentPos > $iOpenQuotePos && $iAssignDelimPos < $iOpoenQuotePos) {}
-#        # check if quoted string has a matching end quote (non-escaped)
-#        # if quoted string value exists, then do not check for line comments until after the close quote
-#        //TODO
-#        
-#
-#        # check for and remove line comment data
-#        $iLineCommentPos = $this->findLineCommentPosition($sLine, $iLineCommentSearchStart);
-#        if ($iLineCommentPos !== false) {
-#            $sLine = substr($sLine, 0, $iLineCommentPos);
-#        }
-
-        # check for assignment delimiter
-        # split on assignment delimiter
-        # trim data (both variable and value)
-        # if double-quoted on both ends, trim quotes from value data
-        # un-escape remaining
-
-    }
-
     private function addError($iLine, $sMessage) {
         $iLine++;   // due to base 0 line indexing
         $this->aErrors[] = "ConfigFile parse error on line {$iLine}: {$sMessage}";
@@ -474,12 +537,45 @@ class ConfigFile {
      * or mDefault (default: null) if the query was not found.
      * @param string $sQuery The query string. e.g. "variable", "scope", "scope.variable", etc
      * @param mixed $mDefault The return value should the query not find anything.
-     * @return string|null The matching value from the query, or mDefault if not found
+     * @return string|ConfigFile|null The matching value from the query, or mDefault if not found
      */
     public function get($sQuery, $mDefault=null) {
-        //TODO
+        $mVal = $mDefault;
+        # try to get value match first
+        if (array_key_exists($sQuery, $this->aValues)) {
+            $mVal = $this->aValues[$sQuery];
+        }
+        else {
+            # check if this matches any scopes
+            $sScopeChar = preg_quote($this->sScopeDelimiter, "/");
+            $sQueryStr = preg_quote($sQuery, "/");
+            # must match a scope exactly ( "my.scope" should not match "my.scopeless" )
+            $sScopePattern = "/^{$sQueryStr}{$sScopeChar}(.+)$/";
+
+            $aScopeMatches = array();
+            foreach ($this->aValues as $sName=>$mValue) {
+                if (preg_match($sScopePattern, $sName, $aMatch) === 1) {
+                    $aScopeMatches[$aMatch[1]] = $mValue;
+                }
+            }
+            if (count($aScopeMatches) > 0) {
+                $mVal = new ConfigFile();
+                $mVal->preload($aScopeMatches);
+            }
+        }
+        return $mVal;
+    }
+
+    /**
+     * Get all name/value pairs that have been parsed from the file.
+     * @return array An associative array containing name=>value pairs will full scope names.
+     */
+    public function getAll() {
+        return $this->aValues;
     }
 
 }
+
+} // Include guard end
 
 ?>

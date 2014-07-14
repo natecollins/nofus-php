@@ -37,7 +37,8 @@ function dbauth() {
                         'host'=>'primarymysql.example.com',
                         'username'=>'my_user',
                         'password'=>'my_pw',
-                        'database'=>'my_db'
+                        'database'=>'my_db',
+                        'port'=>3306            # optional, defaults to 3306
                 ),
                 array(
                         'host'=>'secondarymysql.example.com',
@@ -85,7 +86,8 @@ class DBConnect {
      *                   'host'=>'primarymysql.example.com',
      *                   'username'=>'my_user',
      *                   'password'=>'my_pw',
-     *                   'database'=>'my_db'
+     *                   'database'=>'my_db',
+     *                   'port'=>3306            # optional, defaults to 3306
      *           ),
      *           array(
      *                   'host'=>'secondarymysql.example.com',
@@ -110,15 +112,18 @@ class DBConnect {
         # psudeo verify connection info (vars exist, not empty)
         if (is_array($conn_info)) {
             foreach ($conn_info as $conn) {
-                $aServ = array();
+                $aServ = array('port'=>3306);
                 foreach (array('host','username','password','database') as $at) {
-                    if (isset($conn[$at]) and trim($conn[$at]) != '') $aServ[$at] = $conn[$at];
+                    if (isset($conn[$at]) && trim($conn[$at]) != '') { $aServ[$at] = $conn[$at]; }
                 }
-                if (count($aServ) == 4) $this->aServers[] = $aServ;
+                # optional port
+                if (array_key_exists('port', $conn)) { $aServ['port'] = intval($conn['port']); }
+                # ensure all fields exist, otherwise we ignore the server
+                if (count($aServ) == 5) $this->aServers[] = $aServ;
             }
         }
 
-        if ($bLoadBalance) $this->loadBalance();
+        if ($bLoadBalance) { $this->loadBalance(); }
      }
 
      /**
@@ -145,10 +150,10 @@ class DBConnect {
      * @return boolean Returns true if a connection to the database exists; false otherwise
      */
     public function connectionExists() {
-    	if ($this->cInstance === null) {
-    		return false;
-    	}
-    	return true;
+        if ($this->cInstance === null) {
+            return false;
+        }
+        return true;
     }
 
     /**
@@ -219,7 +224,7 @@ class DBConnect {
                 $aServer = $this->aServers[$i];
                 try {
                     $cInst = new PDO(
-                                "mysql:host={$aServer['host']};dbname={$aServer['database']}",
+                                "mysql:host={$aServer['host']};dbname={$aServer['database']};port={$aServer['port']}",
                                 $aServer['username'], $aServer['password'],
                                 array(
                                     PDO::ATTR_PERSISTENT=>$this->bPersistent,
