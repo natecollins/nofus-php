@@ -33,6 +33,8 @@ $sql_servers = array(
 
 $db = new DBConnect($sql_servers);
 
+####################################################
+# Simple Query
 $query = "SELECT firstname, lastname FROM users WHERE age > ?";
 $values = array(21);
 
@@ -41,18 +43,178 @@ $names = $db->query($query, $values);
 foreach ($names as $row) {
     echo "{$row['lastname']}, {$row['firstname']}";
 }
+
+####################################################
+# Single Row Query
+$query = "SELECT firstname, lastname FROM users WHERE user_id = ?";
+$values = array(42);
+
+$row = $db->queryRow($query, $values);
+
+echo "{$row['lastname']}, {$row['firstname']}";
+
+####################################################
+# Argument Expansion Query
+$user_id_list = array(2,3,5,7,11)
+$query = "SELECT firstname, lastname FROM users WHERE user_id IN (?)";
+$values = array($user_id_list);
+
+$names = $db->query($query, $values);
+
+foreach ($names as $row) {
+    echo "{$row['lastname']}, {$row['firstname']}";
+}
+
+####################################################
+# Column Query
+$query = "SELECT number FROM phone_directory WHERE city = ?";
+$values = array('Kalamazoo');
+
+$phone_numbers = $db->queryColumn($query, $values);
+// will contain an array of the values from the 'number' database column
+
+####################################################
+# Loop Over Large Resultset Query
+$query = "SELECT firstname, lastname FROM phone_directory WHERE country = ?";
+$values = array('US');
+
+$db->queryLoop($query, $values);
+while ($row = $db->queryNext()) {
+    echo "{$row['lastname']}, {$row['firstname']}";
+}
+
+####################################################
+# Insert Query
+$query = "INSERT INTO users (firstname, lastname) VALUES(?,?)";
+$values = array('John', 'Doe');
+
+$user_id = $db->query($query, $values);
+// returns the last insert id on success, or null on failure
+
+####################################################
+# Update Query
+$query = "UPDATE users SET lastname = ? WHERE user_id = ?";
+$values = array('doe', 42);
+
+$update_count = $db->query($query, $values);
+echo "Updated {$update_count} rows.";
+
+####################################################
+# Delete Query
+$query = "DELETE FROM users WHERE user_id = ?";
+$values = array(33);
+
+$delete_count = $db->query($query, $values);
+echo "Deleted {$delete_count} rows.";
+
+####################################################
+# Safe Table and Column Name Escaping
+# (safe from SQL injections; you should still use caution to prevent other shenanigans)
+$safe_table = $db->escapeIdentifier($table);
+$safe_column = $db->escapeIdentifier($column);
+$query = "SELECT firstname, lastname FROM {$safe_table} WHERE {$safe_column} = ?";
+$values = array(42);
+
+$names = $db->query($query, $values);
+
+foreach ($names as $row) {
+    echo "{$row['lastname']}, {$row['firstname']}";
+}
+
 ```
 
 
-__Utility Classes for Web Development__  
+ConfigFile
+--------------
+A class to read in plain text config files.
+
+  - Simple "variable = value" syntax
+  - Allows quoted string values
+  - Allows line comments, including end line
+  - Allows variable scopes
+  - Allows scope section definitions
+  - Allows valueless variables
+
+**Sample Config File**:  
+```
+####################################################
+# My Config File
+# Comment style 1
+// Comment style 2
+
+email = me@example.com
+name = John Doe     # End line comments allowed
+
+debug_mode
+
+nickname = " John \"Slick\" Doe "
+
+date.birth = 1975-02-18
+
+[address]
+home.line_1 = 123 Rural Rd
+home.state = Ohio
+home.city = Delta
+
+work.line_1 = 456 Main St.
+work.line_2 = Acme Corporation
+work.state = Ohio
+work.city = Napoleon
+
+```
+
+**Examples:**
+```php
+$cf = new ConfigFile('app.conf');
+
+if (!$cf->load()) {
+    echo "Could not load file!";
+    exit(1);
+}
+
+####################################################
+# Simple Variable
+$email = $cf->get('email');
+// if the email variable exists in the file, returns it as a string; if not, returns null
+
+####################################################
+# Simple Variable with Default Value
+$phone = $cf->get('phone', '555-1234');
+// if the phone variable exists in the file, returns it as a string; if not, returns '555-1234'
+
+####################################################
+# Simple Valueless Variable
+$debug = $cf->get('debug_mode', false);
+// valueless variables return true if they exist, otherwise returns the custom default of false
+
+####################################################
+# Get Quoted Value
+$nickname = $cf->get('nickname');
+echo "==${$nickname}==";
+# will print: == John "Slick" Doe ==
+
+####################################################
+# Get Variable with Scope
+$birthdate = $cf->get('date.birth');
+
+####################################################
+# Get Scope, Example 1
+$home = $cf->get('address.home');
+$home_line_1 = $home->get("line_1");
+
+####################################################
+# Get Scope, Example 2
+$addresses = $cf->get('address');
+$work_line_1 = $addresses->get("work.line_1");
+```
+
+
+DBConect Public Methods
+--------------
 In the example code below, the DBConnect object has been instantiated as `$db`.
 
-
-Public Methods
---------------
-
-- **silentErrors()**  
-Takes: boolean  
+**silentErrors()**  
+Parameters: boolean  
 Returns: nothing  
 	
 Set whether or not an exception should be thrown on a MySQL error. Takes a boolean argument. If called without an argument, the default is to set silent to true. Note that the directive only takes effect if the database handle object has an active connection to the database, since rather than setting an instance value in the object it actually sets a PDO attribute of the connection.
@@ -62,28 +224,24 @@ Set whether or not an exception should be thrown on a MySQL error. Takes a boole
 	$db->silentErrors(true); //also disables exceptions on MySQL errors  
 	$db->silentErrors(false); //an exception will be thrown on MySQL errors from this connection  
 ```
-- **connectionExists()**  
-Takes: nothing  
+**connectionExists()**  
+Parameters: none  
 Returns: boolean  
 	
 Determines whether or not the database object has an active connection to the database.
 
 ```php
-	if ($db->connectionExists()) 
-	{
-		do(aThing);
-	}
-	else
-	{
-		echo "No connection to database";
-	}
+    if ($db->connectionExists()) {
+        do(aThing);
+    }
+    else
+    {
+        echo "No connection to database";
+    }
 ```
-- ***quoteColumn()***
-> DEPRECATED in favor of escapeIdentifier() (quoteColumn() is 
-> actually just an alias for escapeIdentifier())
 
-- **escapeIdentifier()**  
-Takes: string, boolean (optional, default: true)  
+**escapeIdentifier()**  
+Parameters: string, boolean (optional, default: true)  
 Returns: string  
 
 Sanitizes an identifier (table or column name) which may have come from an untrusted source (e.g. form input). If the passed string matches any column or table name, the first match is returned, optionally (default: true) in a backticked string. If it doesn't match any table or column name, it returns an empty string. This is useful in preventing SQL injection attacks in cases where it is difficult or impossible to build a statement without a table or column name from an untrusted source.
@@ -101,8 +259,8 @@ Sanitizes an identifier (table or column name) which may have come from an untru
 	}
 ```
 
-- **loadBalance()**  
-Takes: nothing  
+**loadBalance()**  
+Parameters: none  
 Returns: nothing  
 
 Performs a sort of load balancing by randomizing the array of servers once per call. 
@@ -114,14 +272,14 @@ Possible example:
 	// $db->aServers addresses are now ('mysql3', 'mysql1', 'mysql2')
 ```
 
-- **setPersistentConnection()**  
-Takes: boolean  
+**setPersistentConnection()**  
+Parameters: boolean  
 Returns: nothing  
 
 Sets or disables persistent database connections for the object. If called with no argument, the default is false. If the current connection state is the same as the argument given, does nothing. If the current connection state differs from the argument, the connection persistence is toggled, and the object is recreated.
 
-- **close()**  
-Takes: nothing  
+**close()**  
+Parameters: none  
 Returns: nothing  
 
 Closes the PDO object.
@@ -130,8 +288,8 @@ Closes the PDO object.
 	$db->close(); // sets the PDO object to null
 ```
 
-- **getHost()**  
-Takes: nothing  
+**getHost()**  
+Parameters: none  
 Returns: string  
 
 Returns either the IP address or hostname of the currently active connection, depending on which was used to create it. If no connection is active, returns the string "No Connection".
@@ -142,8 +300,8 @@ Returns either the IP address or hostname of the currently active connection, de
 	echo $db->getHost(); // prints 'No Connection'
 ```
 
-- **getDatabaseName()**  
-Takes: nothing  
+**getDatabaseName()**  
+Parameters: none  
 Returns: string  
 
 Returns the database string that was used when the currently active connection was created. If no connection is active, returns an empty string.
@@ -154,8 +312,8 @@ Returns the database string that was used when the currently active connection w
 	echo $db->getDatabaseName(); // prints nothing
 ```
 
-- **quoteSmart()**  
-Takes: string  
+**quoteSmart()**  
+Parameters: string  
 Returns: string  
 
 A wrapper for PDO::quote. Returns the given string with proper quoting and escaping for the relevant database engine. Since it requires a PDO object for that, it creates one if one doesn't already exist. If get\_magic\_quotes\_gpc() exists in the global namespace, triggers an error to that effect and exits nonzero. If the string is a number, it is returned unquoted. Otherwise, it is passed through PDO::quote and returned.
@@ -165,14 +323,14 @@ A wrapper for PDO::quote. Returns the given string with proper quoting and escap
 	echo $db->quoteSmart("I'm a string"); // prints 'I''m a string'
 ```
 
-- **statementReturn()**  
-Takes: prepared statement object  
+**statementReturn()**  
+Parameters: prepared statement object  
 Returns: string  
 
 A wrapper for PDO::debugDumpParams. Returns the statement, along with any bound parameters, using output buffering.
 
-- **query()**  
-Takes: string(statement), optional array(params), optional int(fetchtype), optional [mixed or null], optional boolean(fetchall)  
+**query()**  
+Parameters: string(statement), optional array(params), optional int(fetchtype), optional [mixed or null], optional boolean(fetchall)  
 Returns: varies based on type of statement  
 
 Executes a statement, given the statement as a string and an array of parameters (if needed). Returns all matching rows as an array of arrays. For retrieving very large result sets, see queryLoop()/queryNext().
@@ -221,8 +379,8 @@ Returns integer of rows affected for UPDATE, DELETE, REPLACE.
 Returns false and throws a E_USER_WARNING on a SQL related error.
 
 
-- **queryLoop()**  
-Takes: string (statement), array (params)  
+**queryLoop()**  
+Parameters: string (statement), array (params)  
 Returns: nothing  
 
 Executes a statement, but returns nothing. Retrieval of rows is expected to be done using queryNext().
@@ -236,14 +394,14 @@ Executes a statement, but returns nothing. Retrieval of rows is expected to be d
     } 
 ```
 
-- **queryNext()**  
-Takes: optional int(fetchtype)  
+**queryNext()**  
+Parameters: optional int(fetchtype)  
 Returns: array OR false  
 
 Retrieves the next row from a previously called queryLoop() as an array. If no more rows are available, it returns false. See queryLoop().
 
-- **queryRow()**  
-Takes: string (statement), array (params), boolean (require row, default: true), int (optional fetchtype)  
+**queryRow()**  
+Parameters: string (statement), array (params), boolean (require row, default: true), int (optional fetchtype)  
 Returns: array  
 
 Executes a statement and returns the first row as an array. If third arguement is 'true' (the default), will trigger an E_USER_ERROR if no rows are returned.
@@ -265,75 +423,75 @@ Executes a statement and returns the first row as an array. If third arguement i
     $aRow = $db->queryRow($sQuery,$aValues);         // This will throw an E_USER_ERROR
 ```
 
-- **queryColumn()**  
-Takes: string (statement), array (params), int (column index)  
+**queryColumn()**  
+Parameters: string (statement), array (params), int (column index)  
 Returns: array  
 
 Given a column index, returns all values for that column that are returned by the statement. If no column index is passed, the first column is returned.
 
-- **queryReturn()**  
-Takes: string (statement), array (params), boolean  
+**queryReturn()**  
+Parameters: string (statement), array (params), boolean  
 Returns: string  
 
 Returns a string representing the statement as it would be run if it were passed into query() with the given params, but does not actually execute the statement. Primarily used for debugging purposes to see how the params would be executed. It is possible that the returned statement may differ from the statement as it would be executed. The third argument is a boolean which determines if the notice "**[WARNING] This only EMULATES what the prepared statement will run.**" preceeding the return is suppressed (default is false, pass true to suppress the warning).
 
-- **queryDump()**  
-Takes: string (statement), array (params), boolean  
+**queryDump()**  
+Parameters: string (statement), array (params), boolean  
 Returns: string  
 
 Prints out into a HTML stream a string representing the statement as it would be run if it were passed into query() with the given params, but does not actually execute the statement. Primarily used for debugging purposes to see how the params would be executed. It is possible that the returned statement may differ from the statement as it would be executed. The third argument is a boolean which determines if the notice "**[WARNING] This only EMULATES what the prepared statement will run.**" preceeding the return is suppressed (default is false, pass true to suppress the warning).
 
-- **enumValues()**  
-Takes: string (table name), string (column name)  
+**enumValues()**  
+Parameters: string (table name), string (column name)  
 Returns: array  
 
 Queries the database to retrieve all possible values for an enum of a specified table and column. Returns an array containing these values.
 
-- **getTables()**  
-Takes: nothing  
+**getTables()**  
+Parameters: none  
 Returns: array  
 
 Queries the database for a listing of all available tables. Return the tables names in an array.
 
-- **getAllColumns()**  
-Takes: nothing  
+**getAllColumns()**  
+Parameters: none  
 Returns: array  
 
 Queries all tables for all their column names. Returns these column names as an array.
 PERFORMANCE NOTE: This function only queries the database the FIRST time it is used. After which it remembers the columns and doesn't bother re-querying the database on subsequent calls.
 
-- **getTableColumns()**  
-Takes: string (table name, optional)  
+**getTableColumns()**  
+Parameters: string (table name, optional)  
 Returns: array  
 
 Queries the database for information on columns from a given table. If no table is specified, then it queries all tables for column info. It returns columns info cordered by ordinal position. Currently, this function only returns: 'name' (string), 'is_nullable' (bool), 'is_autokey' (bool)
 
-- **startTransaction()**  
-Takes: boolean|null (optional)  
+**startTransaction()**  
+Parameters: boolean|null (optional)  
 Returns: nothing  
 
 Start a transaction. Optionally, can pass a boolean to set the transaction isolation. If set to true, sets transaction isolation to "READ COMMITTED"; if false, sets it to "REPEATABLE READ"; if left null, no transaction level is set (MySQL default is "REPEATABLE READ").
 
-- **commitTransaction()**  
-Takes: nothing  
+**commitTransaction()**  
+Parameters: none  
 Returns: nothing  
 
 Commits a previously started transaction to the database.
 
-- **rollbackTransaction()**  
-Takes: nothing  
+**rollbackTransaction()**  
+Parameters: none  
 Returns: boolean  
 
 Attempts to rollback a previously started transaction. Returns false if there was no previously started transaction, or true otherwise.
 
-- **getQueryCount()**  
-Takes: nothing  
+**getQueryCount()**  
+Parameters: none  
 Returns: int  
 
 Return the number of queries run since this object was created.
 
-- **getLast()**  
-Takes: nothing  
+**getLast()**  
+Parameters: none  
 Returns: string  
 
 Returns a dump of the last query run; if last query was part of a transaction, then returns a dump of all queries run since the transaction was started.
@@ -342,9 +500,9 @@ Returns a dump of the last query run; if last query was part of a transaction, t
 Private Methods
 ---------------
 
-- **create()**  
-- **expandValueLocation()**  
-- **recordQuery()**  
+**create()**  
+**expandValueLocation()**  
+**recordQuery()**  
 
 
 UserData
@@ -355,5 +513,5 @@ A class to handle parsing and limitations on suspicious data.
   - Can return a list of human readable violations.
   - Works with strings, integers, floats, arrays, and files.
 
-- **WORK IN PROGRESS**
+**WORK IN PROGRESS**
 
