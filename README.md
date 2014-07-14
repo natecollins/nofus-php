@@ -209,7 +209,7 @@ $work_line_1 = $addresses->get("work.line_1");
 ```
 
 
-DBConect Public Methods
+DBConnect Public Methods
 --------------
 In the example code below, the DBConnect object has been instantiated as `$db`.
 
