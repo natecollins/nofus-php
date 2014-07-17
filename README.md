@@ -222,7 +222,7 @@ $children = $cf->getArray("children.name");
 ```
 
 
-DBConect Public Methods
+DBConnect Public Methods
 --------------
 In the example code below, the DBConnect object has been instantiated as `$db`.
 
