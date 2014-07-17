@@ -150,11 +150,18 @@ class ConfigFile {
      * exists (e.g. from a file that was already loaded), then this will NOT overwrite
      * the value.
      * @param array $aDefaults An array of "scope.variable"=>"default value" pairs.
+     *                  OR array value may also be an array of values
      */
     public function preload($aDefaults) {
-        foreach($aDefaults as $sName=>$sValue) {
+        foreach($aDefaults as $sName=>$mValue) {
             if (!array_key_exists($sName,$this->aValues)) {
-                $this->aValues[$sName] = $sValue;
+                $this->aValues[$sName] = array();
+                if (is_array($mValue)) {
+                    $this->aValues[$sName] = $mValue;
+                }
+                else {
+                    $this->aValues[$sName][] = $mValue;
+                }
             }
         }
     }
@@ -509,7 +516,10 @@ class ConfigFile {
             $sVarName = $this->getVariableName($sLine, $iLineNum);
             if ($sVarName !== false) {
                 $sAdjustedName = $this->sCurrentScope . ($this->sCurrentScope === "" ? "" : $this->sScopeDelimiter) . $sVarName;
-                $this->aValues[$sAdjustedName] = $this->getVariableValue($sLine, $iLineNum);
+                # initialize variable name array if doesn't exist
+                if (!array_key_exists($sAdjustedName, $this->aValues)) { $this->aValues[$sAdjustedName] = array(); }
+                # append value to values array
+                $this->aValues[$sAdjustedName][] = $this->getVariableValue($sLine, $iLineNum);
             }
         }
     }
@@ -533,7 +543,7 @@ class ConfigFile {
     }
 
     /**
-     * Query the config for a scope/variable. Returns the value or scope on success,
+     * Query the config for a scope/variable. Returns the first value or scope on success,
      * or mDefault (default: null) if the query was not found.
      * @param string $sQuery The query string. e.g. "variable", "scope", "scope.variable", etc
      * @param mixed $mDefault The return value should the query not find anything.
@@ -542,8 +552,8 @@ class ConfigFile {
     public function get($sQuery, $mDefault=null) {
         $mVal = $mDefault;
         # try to get value match first
-        if (array_key_exists($sQuery, $this->aValues)) {
-            $mVal = $this->aValues[$sQuery];
+        if (array_key_exists($sQuery, $this->aValues) && count($this->aValues[$sQuery]) > 0) {
+            $mVal = $this->aValues[$sQuery][0];
         }
         else {
             # check if this matches any scopes
@@ -564,6 +574,20 @@ class ConfigFile {
             }
         }
         return $mVal;
+    }
+
+    /**
+     * Query the config for a variable. Returns all values for the given query as an array.
+     * If no value for the query exists, returns an empty array.
+     * @param string $sQuery The query string. e.g. "variable", "scope.variable", etc
+     * @return array And array containing all matching values from the query, or empty array if not found
+     */
+    public function getArray($sQuery) {
+        $aVal = array();
+        if (array_key_exists($sQuery, $this->aValues)) {
+            $aVal = $this->aValues[$sQuery];
+        }
+        return $aVal;
     }
 
     /**

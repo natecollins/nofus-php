@@ -134,6 +134,7 @@ A class to read in plain text config files.
   - Allows variable scopes
   - Allows scope section definitions
   - Allows valueless variables
+  - Allows multiple values per variable name
 
 **Sample Config File**:  
 ```
@@ -160,6 +161,11 @@ work.line_1 = 456 Main St.
 work.line_2 = Acme Corporation
 work.state = Ohio
 work.city = Napoleon
+
+[children]
+name = Alice
+name = Bobby
+name = Chris
 
 ```
 
@@ -206,6 +212,13 @@ $home_line_1 = $home->get("line_1");
 # Get Scope, Example 2
 $addresses = $cf->get('address');
 $work_line_1 = $addresses->get("work.line_1");
+
+####################################################
+# Get Array of Values
+$first_child = $cf->get("children.name");
+$children = $cf->getArray("children.name");
+// value of $first_child would be the string 'Alice'
+// value of $children would be the array: ('Alice','Bobby','Chris')
 ```
 
 
@@ -496,22 +509,4 @@ Returns: string
 
 Returns a dump of the last query run; if last query was part of a transaction, then returns a dump of all queries run since the transaction was started.
 
-
-Private Methods
----------------
-
-**create()**  
-**expandValueLocation()**  
-**recordQuery()**  
-
-
-UserData
---------------
-A class to handle parsing and limitations on suspicious data.
-
-  - Set rules prior to parsing user data, rejecting violations.
-  - Can return a list of human readable violations.
-  - Works with strings, integers, floats, arrays, and files.
-
-**WORK IN PROGRESS**
 
