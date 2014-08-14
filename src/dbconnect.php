@@ -457,14 +457,14 @@ class DBConnect {
 MySQL Error Details
 Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
 
-<?
+<?php
             echo $this->queryReturn($sQuery,$aValues,true);
             echo PHP_EOL;
             echo $this->statementReturn($this->cStatement);
 ?>
 
 ============================================================
-<?
+<?php
             $this->recordQuery($this->cStatement);
 
             trigger_error("DBConnect Error: Query Failed ({$aError[1]}): {$aError[2]}", E_USER_WARNING);
