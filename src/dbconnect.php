@@ -351,6 +351,43 @@ class DBConnect {
     }
 
     /**
+     * Replace all anonymous placeholders in query that has an array as a value with multiple
+     * placeholders, also replaceing the array with multiple separate values.
+     *
+     * @param string $sQuery The query string with placeholders that may be expanded
+     * @param array $aValues An array of values; values that are non-empty arrays will be expanded
+     */
+    private function expandQueryPlaceholders(&$sQuery,&$aValues) {
+        $aExpandedValues = array();
+        $iPlaceholderLoc = 0;
+        foreach ($aValues as $key=>$value) {
+            if (is_array($value)) {
+                // We can't have an empty array
+                if (count($value) == 0) {
+                    trigger_error("DBConnect Error: Cannot process value of empty array.", E_USER_WARNING);
+                    break;
+                }
+                $sQuery = $this->expandValueLocation($sQuery,$iPlaceholderLoc+1,count($value));
+                // Adding more placeholders shifts the current placeholder location
+                $iPlaceholderLoc += count($value) - 1;
+                // not sure what would happen if you mix anonymous placeholders (?)
+                // with named placeholders (:param). probably shouldn't do that.
+                $aExpandedValues = array_merge($aExpandedValues,$value);
+            }
+            else if (is_int($key) ) {
+                // use shifted location for anonymous placeholders
+                $aExpandedValues[$iPlaceholderLoc] = $value;
+            }
+            else {
+                // preserve named placeholders key
+                $aExpandedValues[$key] = $value;
+            }
+            $iPlaceholderLoc++;
+        }
+        $aValues = $aExpandedValues;
+    }
+
+    /**
      * Record the last query statement attempted
      *
      * @param object $cStatement The statement to record the query from
@@ -414,21 +451,7 @@ class DBConnect {
             }
 
             // Catch Array Values and Expand them
-            $aExpandedValues = array();
-            $iPlaceholderLoc = 1;
-            foreach ($aValues as $key=>$value){
-                if (is_array($value)) {
-                    $sQuery = $this->expandValueLocation($sQuery,$iPlaceholderLoc,count($value));
-                    // not sure what would happen if you mix anonymous placeholders (?)
-                    // with named placeholders (:param). probably shouldn't do that.
-                    $aExpandedValues = array_merge($aExpandedValues,$value);
-                }
-                else {
-                    $aExpandedValues[$key] = $value;
-                }
-                $iPlaceholderLoc++;
-            }
-            $aValues = $aExpandedValues;
+            $this->expandQueryPlaceholders($sQuery,$aValues);
 
             // Execute Query
             $this->cStatement = $this->cInstance->prepare($sQuery);
@@ -488,7 +511,7 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
             $iChangeCount = $this->cStatement->rowCount();
 
             # if count was pulled, return it
-            if ( is_numeric($iChangeCount) and $iChangeCount >= 0 ) {
+            if ( is_numeric($iChangeCount) && $iChangeCount >= 0 ) {
                 return $iChangeCount;
             }
             return null;
@@ -583,17 +606,7 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
         }
 
         # Catch Array Values and Expand them
-        $aExpandedValues = array();
-        for ($i=0; $i<count($aValues); $i++) {
-            if (is_array($aValues[$i])) {
-                $sQuery = $this->expandValueLocation($sQuery,$i+1,count($aValues[$i]));
-                $aExpandedValues = array_merge($aExpandedValues,$aValues[$i]);
-            }
-            else {
-                $aExpandedValues[] = $aValues[$i];
-            }
-        }
-        $aValues = $aExpandedValues;
+        $this->expandQueryPlaceholders($sQuery,$aValues);
 
         # Escape values
         foreach ($aValues as $mKey=>$mVal) {
