@@ -54,7 +54,7 @@ $row = $db->queryRow($query, $values);
 echo "{$row['lastname']}, {$row['firstname']}";
 
 ####################################################
-# Argument Expansion Query
+# Argument Expansion Query (requires anonymous placeholder: ?)
 $user_id_list = array(2,3,5,7,11)
 $query = "SELECT firstname, lastname FROM users WHERE user_id IN (?)";
 $values = array($user_id_list);
@@ -81,6 +81,17 @@ $values = array('US');
 $db->queryLoop($query, $values);
 while ($row = $db->queryNext()) {
     echo "{$row['lastname']}, {$row['firstname']}";
+}
+
+####################################################
+# Re-using Prepared Statements (argument expansion not permitted)
+$query = "SELECT * FROM users WHERE lastname = ?";
+$prepared = $db->prepare($query);
+
+$lastnames = array('Smith','Cooper','Harris');
+for ($lastnames as $lname) {
+    $users = $db->query($prepared, array($lname));
+    echo "Found ".count($users)." users with a lastname of ${lname}";
 }
 
 ####################################################

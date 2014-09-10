@@ -418,47 +418,51 @@ class DBConnect {
      *     $sQuery = "SELECT name,age FROM users WHERE hair_color = ?";
      *     $aValues = "brown";
      *
-     * @param string $sQuery String query with ? placeholders for linearly inserted values, or :name placeholders for associative values
+     * @param string|array(PDOStatement,bool,bool) $mQuery String query with ? placeholders for linearly inserted values, or :name placeholders for associative values; or already prepared statement
      * @param array|mixed $aValues Array of values to be escaped and inserted into the query
      * @param int $iFetchStyle The PDO fetch style to query using
      * @param mixed $vFetchArg Additional argument to pass if the fetch style requires it
      * @param boolean $bFetchAll If true, all rows from a SELECT will be returned; if false, no rows will be returned (see queryNext())
      * @return array|int|null|false An array of rows for SELECT; primary key for INSERT (NULL is none returned); number of rows affected for UPDATE/DELETE/REPLACE. If a SQL error occurs, a E_USER_WARNING is triggered and false is returned.
      */
-    public function query( $sQuery, $aValues=array(), $iFetchStyle=PDO::FETCH_ASSOC, $vFetchArg=null, $bFetchAll=true ) {
+    public function query( $mQuery, $aValues=array(), $iFetchStyle=PDO::FETCH_ASSOC, $vFetchArg=null, $bFetchAll=true ) {
         $this->iQueryCount += 1;
 
-        # query type
-        $bIsInsert = preg_match('/^\s*INSERT/i',$sQuery);
-        $bIsUpdateDelete = preg_match('/^\s*(UPDATE|REPLACE|DELETE)/i',$sQuery);
+        // If value was passed directly (for single value queries), place it into an array
+        if (!is_array($aValues)) {
+            $aValues = array($aValues);
+        }
 
         # the array where the rows are to be stored
         $aRows = array();
+        # clear the last statement
+        $this->cStatement = null;
+        $bIsInsert = false;
+        $bIsUpdateDelete = false;
 
-        # create connection if one doesn't exist
-        if ( !$this->create() ) {
-            trigger_error("DBConnect Error: Could not establish connection to server.", E_USER_WARNING);
+        # Check if we received a query string
+        if ( is_string($mQuery) ) {
+            # catch array values and expand them
+            $this->expandQueryPlaceholders($mQuery,$aValues);
+
+            $mQuery = $this->prepare($mQuery);
+        }
+
+        # Check if we recieved a prepared PDOStatement
+        if ( is_array($mQuery) && count($mQuery) == 3 && $mQuery[0] instanceof PDOStatement ) {
+            # We use this as our statement
+            $this->cStatement = $mQuery[0];
+            $bIsInsert = $mQuery[1];
+            $bIsUpdateDelete = $mQuery[2];
+        }
+        else {
+            trigger_error("DBConnect Error: Method query() does not have a valid prepared statement to execute against.", E_USER_WARNING);
             return false;
         }
 
-        # perform the query
-        $this->cStatement = null;
-        $aRows = array();
+        # run query
         try {
-            // If value was passed directly (for single value queries), place it into an array
-            if (!is_array($aValues)) {
-                $aValues = array($aValues);
-            }
-
-            // Catch Array Values and Expand them
-            $this->expandQueryPlaceholders($sQuery,$aValues);
-
             // Execute Query
-            $this->cStatement = $this->cInstance->prepare($sQuery);
-            if ($this->cStatement == false) {
-                trigger_error("DBConnect Error: SQL could not prepare query. Query is not valid or references something non-existant: {$sQuery}", E_USER_WARNING);
-                return false;
-            }
             $this->cStatement->execute($aValues);
 
             // Only fetch rows if requested
@@ -481,9 +485,9 @@ MySQL Error Details
 Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
 
 <?php
-            echo $this->queryReturn($sQuery,$aValues,true);
             echo PHP_EOL;
             echo $this->statementReturn($this->cStatement);
+            echo PHP_EOL;
 ?>
 
 ============================================================
@@ -517,7 +521,52 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
             return null;
         }
 
+        # close the cursor if we're done
+        if ($bFetchAll || $bIsInsert || $bIsUpdateDelete) {
+           $this->cStatement->closeCursor();
+        }
+
         return $aRows;
+    }
+
+    /**
+     * Creates a prepared PDOStatement object that can be passed to the query() function in lieu of a query string.
+     * By passing the prepared PDOStatement, you can significantly increase performance when running the same query
+     * multiple times.
+     * Note: The placeholder expansion feature is disabled when using this method.
+     * Example:
+     *     $sQuery = "SELECT name,age FROM users WHERE hair_color = ?";
+     *     $pPrepared = $db->prepare($sQuery);
+     *
+     *     $aValues1 = array("brown");
+     *     $aValues2 = array("black");
+     *     $aResults1 = $db->query($pPrepared,$aValues1);
+     *     $aResults2 = $db->query($pPrepared,$aValues2);
+     *
+     * @param string $sQuery String query with ? placeholders for linearly inserted values, or :name placeholders for associative values
+     * @return array(PDOStatement,bool,bool)|false The statement for the prepared query. If a SQL error occurs, a E_USER_WARNING is triggered and false is returned.
+     */
+    public function prepare( $sQuery ) {
+        $oStatement = false;
+
+        # query type
+        $bIsInsert = preg_match('/^\s*INSERT/i',$sQuery);
+        $bIsUpdateDelete = preg_match('/^\s*(UPDATE|REPLACE|DELETE)/i',$sQuery);
+
+        # create connection if one doesn't exist
+        if ( !$this->create() ) {
+            trigger_error("DBConnect Error: Could not establish connection to server.", E_USER_WARNING);
+            return false;
+        }
+
+        # prepare query
+        $oStatement = $this->cInstance->prepare($sQuery);
+        if ($oStatement == false) {
+            trigger_error("DBConnect Error: SQL could not prepare query. Query is not valid or references something non-existant: {$sQuery}", E_USER_WARNING);
+            return false;
+        }
+
+        return array($oStatement,$bIsInsert,$bIsUpdateDelete);
     }
 
 
