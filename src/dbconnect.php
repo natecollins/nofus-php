@@ -393,9 +393,15 @@ class DBConnect {
      * @param object $cStatement The statement to record the query from
      */
     private function recordQuery($cStatement) {
-        $sQuery = $this->statementReturn($cStatement);
-        if ($this->bTransaction == true) $this->sLastQuery .= "\n\n$sQuery";
-        else $this->sLastQuery = $sQuery;
+        static $exceed_msg = "LAST QUERY LOG DISABLED : Exceeded 64 MB limit.";
+        if ($this->sLastQuery == $exceed_msg || strlen($this->sLastQuery) > 67108864) {
+            $this->sLastQuery = $exceed_msg;
+        }
+        else {
+            $sQuery = $this->statementReturn($cStatement);
+            if ($this->bTransaction == true) $this->sLastQuery .= "\n\n$sQuery";
+            else $this->sLastQuery = $sQuery;
+        }
     }
 
     /**
