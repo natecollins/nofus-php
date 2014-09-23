@@ -811,6 +811,8 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
             }
             $this->cInstance->beginTransaction();
             $this->bTransaction = true;
+            // Clear the last query log
+            $this->sLastQuery = "";
         }
     }
 
