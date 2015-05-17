@@ -45,6 +45,13 @@ foreach ($names as $row) {
 }
 
 ####################################################
+# Labeled Placeholders
+$query = "SELECT firstname, lastname FROM users WHERE hair_color = :hair";
+$values = array(":hair"=>"brown");
+
+$names = $db->query($query, $values);
+
+####################################################
 # Single Row Query
 $query = "SELECT firstname, lastname FROM users WHERE user_id = ?";
 $values = array(42);
