@@ -1,11 +1,114 @@
 web-utilities
-==============
+=======================
 
-Web-utilities is a set of simple-to-use tools designed to deal with some of the standard headaches when web programming with PHP. Each tool can be used independently of the rest.
+Web-utilities is a set of simple-to-use tools designed to deal with some of the standard headaches
+when web programming with PHP. Each tool can be used independently of the rest.  
 
-DBConnect
---------------
-A class to handle MySQL compatible database connections. Features include:
+* [configfile.php](#configfilephp) - Easy parser for config files
+* [dbconnect.php](#dbconnectphp) - Quick, safe interface for making MySQL/MariaDB queries
+
+
+configfile.php
+-----------------------
+A class to read in plain text config files.
+
+  - Simple "variable = value" syntax
+  - Allows quoted string values
+  - Allows line comments, including end line
+  - Allows variable scopes
+  - Allows scope section definitions
+  - Allows valueless variables
+  - Allows multiple values per variable name
+
+**Sample Config File**:  
+```
+####################################################
+# My Config File
+# Comment style 1
+// Comment style 2
+
+email = me@example.com
+name = John Doe     # End line comments allowed
+
+debug_mode
+
+nickname = " John \"Slick\" Doe "
+
+date.birth = 1975-02-18
+
+[address]
+home.line_1 = 123 Rural Rd
+home.state = Ohio
+home.city = Delta
+
+work.line_1 = 456 Main St.
+work.line_2 = Acme Corporation
+work.state = Ohio
+work.city = Napoleon
+
+[children]
+name = Alice
+name = Bobby
+name = Chris
+
+```
+
+**Examples:**
+```php
+$cf = new ConfigFile('app.conf');
+
+if (!$cf->load()) {
+    echo "Could not load file!";
+    exit(1);
+}
+
+####################################################
+# Simple Variable
+$email = $cf->get('email');
+// if the email variable exists in the file, returns it as a string; if not, returns null
+
+####################################################
+# Simple Variable with Default Value
+$phone = $cf->get('phone', '555-1234');
+// if the phone variable exists in the file, returns it as a string; if not, returns '555-1234'
+
+####################################################
+# Simple Valueless Variable
+$debug = $cf->get('debug_mode', false);
+// valueless variables return true if they exist, otherwise returns the custom default of false
+
+####################################################
+# Get Quoted Value
+$nickname = $cf->get('nickname');
+echo "==${$nickname}==";
+# will print: == John "Slick" Doe ==
+
+####################################################
+# Get Variable with Scope
+$birthdate = $cf->get('date.birth');
+
+####################################################
+# Get Scope, Example 1
+$home = $cf->get('address.home');
+$home_line_1 = $home->get("line_1");
+
+####################################################
+# Get Scope, Example 2
+$addresses = $cf->get('address');
+$work_line_1 = $addresses->get("work.line_1");
+
+####################################################
+# Get Array of Values
+$first_child = $cf->get("children.name");
+$children = $cf->getArray("children.name");
+// value of $first_child would be the string 'Alice'
+// value of $children would be the array: ('Alice','Bobby','Chris')
+```
+
+
+dbconnect.php
+-----------------------
+A class to handle MySQL/MariaDB compatible database connections. Features include:
 
   - Automatic failover between multiple servers
   - Safe escaping of data via prepared statements
@@ -13,8 +116,16 @@ A class to handle MySQL compatible database connections. Features include:
   - Query tracking
   - Query construction emulation (for debugging)
   - Safe escaping of user supplied table and column names
+  - Single SQL connection shared among all instances
 
-**Examples:**
+**Establishing a Connection**
+Establishing a connection to SQL server requires an array object to be passed. This array must
+contain at least one set of server authentication parameters, including `host`, `username`,
+`password`, and `database`. More than one set of parameters can be passed if you have redundant
+SQL servers, in which case each server will be tried in-order until a connection is established
+or there are no connection left to try.  
+
+Pass the array of connection parameters to the `DBConnect` object to prepare your connection.  
 ```php
 $sql_servers = array(
     array(
@@ -32,7 +143,10 @@ $sql_servers = array(
 );
 
 $db = new DBConnect($sql_servers);
+```
 
+**Executing Queries**  
+```php
 ####################################################
 # Simple Query
 $query = "SELECT firstname, lastname FROM users WHERE age > ?";
@@ -141,336 +255,89 @@ foreach ($names as $row) {
 
 ```
 
-
-ConfigFile
---------------
-A class to read in plain text config files.
-
-  - Simple "variable = value" syntax
-  - Allows quoted string values
-  - Allows line comments, including end line
-  - Allows variable scopes
-  - Allows scope section definitions
-  - Allows valueless variables
-  - Allows multiple values per variable name
-
-**Sample Config File**:  
-```
-####################################################
-# My Config File
-# Comment style 1
-// Comment style 2
-
-email = me@example.com
-name = John Doe     # End line comments allowed
-
-debug_mode
-
-nickname = " John \"Slick\" Doe "
-
-date.birth = 1975-02-18
-
-[address]
-home.line_1 = 123 Rural Rd
-home.state = Ohio
-home.city = Delta
-
-work.line_1 = 456 Main St.
-work.line_2 = Acme Corporation
-work.state = Ohio
-work.city = Napoleon
-
-[children]
-name = Alice
-name = Bobby
-name = Chris
-
-```
-
-**Examples:**
+**Throwing Exceptions**  
+The `silentErrors()` method will set the `PDO::ATTR_ERRMODE`. By default, exceptions
+will be thrown.  
 ```php
-$cf = new ConfigFile('app.conf');
+$db->silentErrors();        // disables exceptions on MySQL errors
+$db->silentErrors(true);    // also disables exceptions on MySQL errors
+$db->silentErrors(false);   // an exception will be thrown on MySQL errors from this connection
+```
 
-if (!$cf->load()) {
-    echo "Could not load file!";
+**Sanitizing Identifiers**  
+Table and column names are not typically something you want to use variables for, but there are rare circumstances
+where it might be needed. By calling `escapeIdentifier()`, you can ensure your identifer is sanitized and safe from
+SQL injection attacks. This is accomplished by querying the database for all valid table and column names, and only
+if the passed identifier exactly matches an existing database identifier pulled from the database is it considered
+safe. If the identifer is not safe, an empty string is returned.  
+
+_NOTE_:This only checks that the identifier is valid in the database. You should still **never** trust user supplied
+data for use in your queries.  
+
+For performance reasons, this method only queries the database for identifiers the first time it is called. The
+method caches the results and any subsequent calls make use of the data previously loaded.  
+
+An optional second boolean parameter can be passed if you want the resulting identifier to be backtick quoted.  
+```php
+$column = $obj->getColumnMatch();   // NOT user supplied data
+
+$safe_column    = $db->escapeIdentifier($column);
+// $safe_column = $db->escapeIdentifier($column, true);  // optionally, escaped with backticks
+
+if ($safe_column == '') {
+    echo "Unable to match column!";
     exit(1);
 }
-
-####################################################
-# Simple Variable
-$email = $cf->get('email');
-// if the email variable exists in the file, returns it as a string; if not, returns null
-
-####################################################
-# Simple Variable with Default Value
-$phone = $cf->get('phone', '555-1234');
-// if the phone variable exists in the file, returns it as a string; if not, returns '555-1234'
-
-####################################################
-# Simple Valueless Variable
-$debug = $cf->get('debug_mode', false);
-// valueless variables return true if they exist, otherwise returns the custom default of false
-
-####################################################
-# Get Quoted Value
-$nickname = $cf->get('nickname');
-echo "==${$nickname}==";
-# will print: == John "Slick" Doe ==
-
-####################################################
-# Get Variable with Scope
-$birthdate = $cf->get('date.birth');
-
-####################################################
-# Get Scope, Example 1
-$home = $cf->get('address.home');
-$home_line_1 = $home->get("line_1");
-
-####################################################
-# Get Scope, Example 2
-$addresses = $cf->get('address');
-$work_line_1 = $addresses->get("work.line_1");
-
-####################################################
-# Get Array of Values
-$first_child = $cf->get("children.name");
-$children = $cf->getArray("children.name");
-// value of $first_child would be the string 'Alice'
-// value of $children would be the array: ('Alice','Bobby','Chris')
+$query = "SELECT * FROM books WHERE {$safe_column} = ?";
+$values = array( $obj->getColumnValue() );
+$results = $db->query($query,$values);
 ```
 
-
-DBConnect Public Methods
---------------
-In the example code below, the DBConnect object has been instantiated as `$db`.
-
-**silentErrors()**  
-Parameters: boolean  
-Returns: nothing  
-	
-Set whether or not an exception should be thrown on a MySQL error. Takes a boolean argument. If called without an argument, the default is to set silent to true. Note that the directive only takes effect if the database handle object has an active connection to the database, since rather than setting an instance value in the object it actually sets a PDO attribute of the connection.
-
+**Load Balancing Multiple Servers**  
+Not a true load balancer yet, the `loadBalance()` method will shuffle the order in which servers are connected to.
+Obviously, this must be called before any queries are run and any connections are established.  
 ```php
-	$db->silentErrors(); //disables exceptions on MySQL errors  
-	$db->silentErrors(true); //also disables exceptions on MySQL errors  
-	$db->silentErrors(false); //an exception will be thrown on MySQL errors from this connection  
+$db->loadBalance();
 ```
-**connectionExists()**  
-Parameters: none  
-Returns: boolean  
-	
-Determines whether or not the database object has an active connection to the database.
 
+**Forcing a Connection to End**  
+You can force a connection to a database to end by calling the `close()` method. This method does
+nothing if the connection is already closed.  
 ```php
-    if ($db->connectionExists()) {
-        do(aThing);
-    }
-    else
-    {
-        echo "No connection to database";
-    }
+$db->close();
 ```
 
-**escapeIdentifier()**  
-Parameters: string, boolean (optional, default: true)  
-Returns: string  
-
-Sanitizes an identifier (table or column name) which may have come from an untrusted source (e.g. form input). If the passed string matches any column or table name, the first match is returned, optionally (default: true) in a backticked string. If it doesn't match any table or column name, it returns an empty string. This is useful in preventing SQL injection attacks in cases where it is difficult or impossible to build a statement without a table or column name from an untrusted source.
-
+**Get Database Hostname**  
 ```php
-	$inColumn = $_GET{"column"};
-	if ($db->escapeIdentifier($inColumn) != '')
-	{
-		// the identifier matches either a column or table
-		// it's safe to prepare and run a statement with it
-	}
-	else
-	{
-		echo "$inColumn is not a valid identifier!"; // possible injection attack
-	}
+// prints the domain string used for the 'host' when the current connection was created
+$db->getHost();
+// if no connection exists, or if the connection was closed, "No Connection" will be returned
+$db->close(); 
+$db->getHost(); // returns 'No Connection'
 ```
 
-**loadBalance()**  
-Parameters: none  
-Returns: nothing  
-
-Performs a sort of load balancing by randomizing the array of servers once per call. 
-
-Possible example:
+**Get Database Name**  
+Returns the name of the database currently connected. If no database is connected, will attempt to
+connect to one and return it. If it cannot connect to any databases, it will return an empty string.  
 ```php
-	// $db->aServers addresses are ('mysql1', 'mysql2', 'mysql3')
-	$db->loadBalance();
-	// $db->aServers addresses are now ('mysql3', 'mysql1', 'mysql2')
+$db->getDatabaseName();
 ```
 
-**setPersistentConnection()**  
-Parameters: boolean  
-Returns: nothing  
-
-Sets or disables persistent database connections for the object. If called with no argument, the default is false. If the current connection state is the same as the argument given, does nothing. If the current connection state differs from the argument, the connection persistence is toggled, and the object is recreated.
-
-**close()**  
-Parameters: none  
-Returns: nothing  
-
-Closes the PDO object.
-
+**Debugging a Query**  
+To dump the PDO debugParams and get a copy of the query string for the last query run, you can call
+the `getLast()` method. If you ran series of querys as a transaction, then it will include all queries
+that were part of that transaction.  
 ```php
-	$db->close(); // sets the PDO object to null
+$db->getLast()
 ```
 
-**getHost()**  
-Parameters: none  
-Returns: string  
-
-Returns either the IP address or hostname of the currently active connection, depending on which was used to create it. If no connection is active, returns the string "No Connection".
-
+To emulate a query before it's run and see what it will likely be combined as, you can call either
+the `queryReturn()` or `queryDump()` methods. The first of which emulates joining the query and values
+together and returns it as a string; the latter which does the same, but dumps the query to stdout.  
 ```php
-	echo $db->getHost(); // prints the string used for the host when the current connection was created
-	$db->close(); 
-	echo $db->getHost(); // prints 'No Connection'
+$debug = $db->queryReturn($query,$values);
+$db->queryDump($query,$values);
 ```
-
-**getDatabaseName()**  
-Parameters: none  
-Returns: string  
-
-Returns the database string that was used when the currently active connection was created. If no connection is active, returns an empty string.
-
-```php
-	echo $db->getDatabaseName(); // prints the database string for the current connection
-	$db->close();
-	echo $db->getDatabaseName(); // prints nothing
-```
-
-**quoteSmart()**  
-Parameters: string  
-Returns: string  
-
-A wrapper for PDO::quote. Returns the given string with proper quoting and escaping for the relevant database engine. Since it requires a PDO object for that, it creates one if one doesn't already exist. If get\_magic\_quotes\_gpc() exists in the global namespace, triggers an error to that effect and exits nonzero. If the string is a number, it is returned unquoted. Otherwise, it is passed through PDO::quote and returned.
-
-```php
-	echo $db->quoteSmart("123"); // prints 123
-	echo $db->quoteSmart("I'm a string"); // prints 'I''m a string'
-```
-
-**statementReturn()**  
-Parameters: prepared statement object  
-Returns: string  
-
-A wrapper for PDO::debugDumpParams. Returns the statement, along with any bound parameters, using output buffering.
-
-**query()**  
-Parameters: string(statement), optional array(params), optional int(fetchtype), optional [mixed or null], optional boolean(fetchall)  
-Returns: varies based on type of statement  
-
-Executes a statement, given the statement as a string and an array of parameters (if needed). Returns all matching rows as an array of arrays. For retrieving very large result sets, see queryLoop()/queryNext().
-
-The return value depends on the type of statement executed:  
-	- SELECT: an array of rows (empty array if there were no rows)
-	- INSERT: the primary key for the insert (or NULL if none was returned)  
-	- UPDATE/DELETE/REPLACE: number of rows affected  
-
-Examples:
-```php
-    $sQuery = "SELECT name,age FROM users WHERE hair_color = ?";
-    $aValues = array("brown");
-    $aRows = $db->query($sQuery,$aValues);
-```
-```php
-    $sQuery = "SELECT name,age FROM users WHERE hair_color = :hair";
-    $aValues = array(":hair"=>"brown");
-    $aRows = $db->query($sQuery,$aValues);
-```
-
-Note: If you use '?' to identify variable positions, you MAY pass an array as a value, and it will be expanded and comma delimited.
-For example, this query:
-```php
-    $sQuery = "SELECT name,age FROM users WHERE hair_color IN (?) AND age > ?";
-    $aValues = array(array("brown","red","black"),20);
-    $aRows = $db->query($sQuery,$aValues);
-```
-Would translate into:
-```php
-    $sQuery = "SELECT name,age FROM users WHERE hair_color IN (?,?,?) AND age > ?";
-    $aValues = array("brown","red","black",20);
-    $aRows = $db->query($sQuery,$aValues);
-```
-
-For queries with only a single value, you may pass the value directly
-```php
-    $sQuery = "SELECT name,age FROM users WHERE hair_color = ?";
-    $sValue = "brown";
-    $aRows = $db->query($sQuery,$sValue);
-```
-
-Returns an array of rows for SELECT.
-Returns integer auto increment id or null for INSERT.
-Returns integer of rows affected for UPDATE, DELETE, REPLACE.
-Returns false and throws a E_USER_WARNING on a SQL related error.
-
-
-**queryLoop()**  
-Parameters: string (statement), array (params)  
-Returns: nothing  
-
-Executes a statement, but returns nothing. Retrieval of rows is expected to be done using queryNext().
-
-```php
-    $sQuery = "SELECT name, address FROM phonebook WHERE state = ?";
-    $aValues = array("Michigan");
-    $db->queryLoop($sQuery,$aValues);
-    while ($aRow = $db->queryNext()) {
-        echo "{$aRow['name']} lives at {$aRow['address']}" . PHP_EOL;
-    } 
-```
-
-**queryNext()**  
-Parameters: optional int(fetchtype)  
-Returns: array OR false  
-
-Retrieves the next row from a previously called queryLoop() as an array. If no more rows are available, it returns false. See queryLoop().
-
-**queryRow()**  
-Parameters: string (statement), array (params), boolean (require row, default: true), int (optional fetchtype)  
-Returns: array  
-
-Executes a statement and returns the first row as an array. If third arguement is 'true' (the default), will trigger an E_USER_ERROR if no rows are returned.
-
-```php
-    // Assuming an 'id' of 33 exists
-    $sQuery = "SELECT name FROM users WHERE id = ?";
-    $aValues = array(33);
-    $aRow = $db->queryRow($sQuery,$aValues);
-
-    echo $aRow['name'] . PHP_EOL;
-```
-
-```php
-    // Assuming 'id' of 123 does not exist
-    $sQuery = "SELECT name FROM users WHERE id = ?";
-    $aValues = array(123);
-    $aRow = $db->queryRow($sQuery,$aValues,false);   // This returns null, but throws no error.
-    $aRow = $db->queryRow($sQuery,$aValues);         // This will throw an E_USER_ERROR
-```
-
-**queryColumn()**  
-Parameters: string (statement), array (params), int (column index)  
-Returns: array  
-
-Given a column index, returns all values for that column that are returned by the statement. If no column index is passed, the first column is returned.
-
-**queryReturn()**  
-Parameters: string (statement), array (params), boolean  
-Returns: string  
-
-Returns a string representing the statement as it would be run if it were passed into query() with the given params, but does not actually execute the statement. Primarily used for debugging purposes to see how the params would be executed. It is possible that the returned statement may differ from the statement as it would be executed. The third argument is a boolean which determines if the notice "**[WARNING] This only EMULATES what the prepared statement will run.**" preceeding the return is suppressed (default is false, pass true to suppress the warning).
-
-**queryDump()**  
-Parameters: string (statement), array (params), boolean  
-Returns: string  
-
-Prints out into a HTML stream a string representing the statement as it would be run if it were passed into query() with the given params, but does not actually execute the statement. Primarily used for debugging purposes to see how the params would be executed. It is possible that the returned statement may differ from the statement as it would be executed. The third argument is a boolean which determines if the notice "**[WARNING] This only EMULATES what the prepared statement will run.**" preceeding the return is suppressed (default is false, pass true to suppress the warning).
 
 **enumValues()**  
 Parameters: string (table name), string (column name)  
@@ -520,11 +387,5 @@ Parameters: none
 Returns: int  
 
 Return the number of queries run since this object was created.
-
-**getLast()**  
-Parameters: none  
-Returns: string  
-
-Returns a dump of the last query run; if last query was part of a transaction, then returns a dump of all queries run since the transaction was started.
 
 
