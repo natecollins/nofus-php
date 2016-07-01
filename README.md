@@ -146,6 +146,21 @@ $db = new DBConnect($sql_servers);
 ```
 
 **Executing Queries**  
+To execute a query, you pass a query string and an array of values to the `query()` method.
+If there are no values, you can omit the second argument. All queries are processed as
+prepared queries.  
+
+Return values are dependent on the type of query that is run. `SELECT` queries return an array
+of rows; `INSERT` queries return the unique id of the new row or `null` otherwise; `DELETE`
+and `UPDATE` queries return the number of rows affected.  
+
+Additional means of running queries include:  
+ - `queryRow` Only the first row of results is returned. By default, throws `E_USER_ERROR` if no rows were found.
+ - `queryColumn` Returns an array containing the values of a specific column. By default, the first column is used.
+ - `queryLoop` & `queryNext` For gathering results one row at a time. See examples below.
+ - `queryPrepare` For manually creating a prepared query, with the ability to re-use it multiple times.
+
+_Example Queries_:  
 ```php
 ####################################################
 # Simple Query
@@ -175,6 +190,17 @@ $row = $db->queryRow($query, $values);
 echo "{$row['lastname']}, {$row['firstname']}";
 
 ####################################################
+# Single Row Query (optional)
+$query = "SELECT firstname, lastname FROM users WHERE user_id = ?";
+$values = array(42);
+
+$row = $db->queryRow($query, $values, false);
+
+if ($row !== null) {
+    echo "{$row['lastname']}, {$row['firstname']}";
+}
+
+####################################################
 # Argument Expansion Query (requires anonymous placeholder: ?)
 $user_id_list = array(2,3,5,7,11)
 $query = "SELECT firstname, lastname FROM users WHERE user_id IN (?)";
@@ -193,6 +219,14 @@ $values = array('Kalamazoo');
 
 $phone_numbers = $db->queryColumn($query, $values);
 // will contain an array of the values from the 'number' database column
+
+####################################################
+# Column Query (selected)
+$query = "SELECT number, unlisted, area_code FROM phone_directory WHERE city = ?";
+$values = array('Kalamazoo');
+
+$area_codes = $db->queryColumn($query, $values, 2); // 2 = 3rd column, 0-based index
+// will contain an array of the values from the 'area_code' database column
 
 ####################################################
 # Loop Over Large Resultset Query
@@ -339,53 +373,40 @@ $debug = $db->queryReturn($query,$values);
 $db->queryDump($query,$values);
 ```
 
-**enumValues()**  
-Parameters: string (table name), string (column name)  
-Returns: array  
+**Grabbing a List of Enum Values**  
+If a table column is an enum, you can get and array containing all possible
+enum values by calling the `enumValues()` method, and passing the table
+and column in question. The returned array will be ordered in the same order
+as the enum values are defined in the table.  
+```php
+$enums = $db->enumValues('mytable', 'mycolumn);
+```
 
-Queries the database to retrieve all possible values for an enum of a specified table and column. Returns an array containing these values.
+**Using Transactions**  
+Transactions can be used via the methods `startTransaction()`, `commitTransaction()`, and `rollbackTransaction()`
+assuming the database engine support it.  
+```php
+$db->startTransaction()
 
-**getTables()**  
-Parameters: none  
-Returns: array  
+$update_count = $db->query($query, $values);
+if ($update_count > 1) {
+    $db->rollbackTransaction()
+}
+else {
+    $db->commitTransaction()
+}
+```
 
-Queries the database for a listing of all available tables. Return the tables names in an array.
+By default, MySQL sets the transaction isolation to `REPEATABLE READ`. You can change this to `READ COMMITTED` by passing
+a boolean `true` when starting the transaction.  
+```php
+$db->startTransaction(true);
+```
 
-**getAllColumns()**  
-Parameters: none  
-Returns: array  
-
-Queries all tables for all their column names. Returns these column names as an array.
-PERFORMANCE NOTE: This function only queries the database the FIRST time it is used. After which it remembers the columns and doesn't bother re-querying the database on subsequent calls.
-
-**getTableColumns()**  
-Parameters: string (table name, optional)  
-Returns: array  
-
-Queries the database for information on columns from a given table. If no table is specified, then it queries all tables for column info. It returns columns info cordered by ordinal position. Currently, this function only returns: 'name' (string), 'is_nullable' (bool), 'is_autokey' (bool)
-
-**startTransaction()**  
-Parameters: boolean|null (optional)  
-Returns: nothing  
-
-Start a transaction. Optionally, can pass a boolean to set the transaction isolation. If set to true, sets transaction isolation to "READ COMMITTED"; if false, sets it to "REPEATABLE READ"; if left null, no transaction level is set (MySQL default is "REPEATABLE READ").
-
-**commitTransaction()**  
-Parameters: none  
-Returns: nothing  
-
-Commits a previously started transaction to the database.
-
-**rollbackTransaction()**  
-Parameters: none  
-Returns: boolean  
-
-Attempts to rollback a previously started transaction. Returns false if there was no previously started transaction, or true otherwise.
-
-**getQueryCount()**  
-Parameters: none  
-Returns: int  
-
-Return the number of queries run since this object was created.
-
+**Get Count of Query Calls Made**  
+To get a listing of the total number of queries for this specific instance of
+a DBConnect object, you can use the `getQueryCount()` method.  
+```php
+$count = $db->getQueryCount();
+```
 
