@@ -305,7 +305,7 @@ SQL injection attacks. This is accomplished by querying the database for all val
 if the passed identifier exactly matches an existing database identifier pulled from the database is it considered
 safe. If the identifer is not safe, an empty string is returned.  
 
-_NOTE_:This only checks that the identifier is valid in the database. You should still **never** trust user supplied
+_NOTE_: This only checks that the identifier is valid in the database. You should still **never** trust user supplied
 data for use in your queries.  
 
 For performance reasons, this method only queries the database for identifiers the first time it is called. The
@@ -386,14 +386,14 @@ $enums = $db->enumValues('mytable', 'mycolumn);
 Transactions can be used via the methods `startTransaction()`, `commitTransaction()`, and `rollbackTransaction()`
 assuming the database engine support it.  
 ```php
-$db->startTransaction()
+$db->startTransaction();
 
 $update_count = $db->query($query, $values);
 if ($update_count > 1) {
-    $db->rollbackTransaction()
+    $db->rollbackTransaction();
 }
 else {
-    $db->commitTransaction()
+    $db->commitTransaction();
 }
 ```
 
