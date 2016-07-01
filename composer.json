@@ -1,0 +1,17 @@
+{
+    "name": "natecollins/web-utilities",
+    "license": "BSD-2-Clause",
+    "authors": [
+        {
+            "name": "Nathan Collins",
+            "email": "npcollins-gmail-com@example.com"
+        }
+    ],
+    "require": {},
+    "autoload": {
+        "psr-4" {
+            "WebUtilities\\": ""
+        }
+    }
+}
+
