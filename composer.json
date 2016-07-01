@@ -9,9 +9,7 @@
     ],
     "require": {},
     "autoload": {
-        "psr-4": {
-            "WebUtilities\\": ""
-        }
+        "classmap": ["src/"]
     }
 }
 
