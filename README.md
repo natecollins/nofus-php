@@ -164,8 +164,8 @@ _Example Queries_:
 ```php
 ####################################################
 # Simple Query
-$query = "SELECT firstname, lastname FROM users WHERE age > ?";
-$values = array(21);
+$query = "SELECT firstname, lastname FROM users WHERE age > ? AND lastname != ?";
+$values = array(21, "Smith");
 
 $names = $db->query($query, $values);
 
@@ -379,7 +379,7 @@ enum values by calling the `enumValues()` method, and passing the table
 and column in question. The returned array will be ordered in the same order
 as the enum values are defined in the table.  
 ```php
-$enums = $db->enumValues('mytable', 'mycolumn);
+$enums = $db->enumValues('mytable', 'mycolumn');
 ```
 
 **Using Transactions**  
