@@ -75,8 +75,35 @@ class UserData {
 
     }
 
+    /**
+     * Static constructor wrapper
+     */
+    static public function create($sFieldName, $sMethod="ANY") {
+        return new UserData($sFieldName, $sMethod);
+    }
+
+    /**
+     * Get the appropriate value given the requested method
+     * @return string|null The string value, or null if not found
+     */
     private function getValue() {
-        //TODO
+        $mValue = null;
+        if ($mValue === null &&
+          in_array($this->sMethod, array('ANY','GET')) &&
+          array_key_exists($this->sFieldName, $_GET)) {
+            $mValue = $_GET[$this->sFieldName];
+        }
+        if ($mValue === null &&
+          in_array($this->sMethod, array('ANY','POST')) &&
+          array_key_exists($this->sFieldName, $_POST)) {
+            $mValue = $_POST[$this->sFieldName];
+        }
+        if ($mValue === null &&
+          in_array($this->sMethod, array('ANY','COOKIE')) &&
+          array_key_exists($this->sFieldName, $_COOKIE)) {
+            $mValue = $_COOKIE[$this->sFieldName];
+        }
+        return $mValue;
     }
 
     public function getStr($mDefault=null) {
