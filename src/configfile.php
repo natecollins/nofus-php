@@ -47,6 +47,8 @@ badquoted = this is "NOT" a quoted string           # value doesn't start with a
 oddquote = "not a quoted value" cause extra         # value will parse as: "\"not a quoted value\" cause extra"
 novalue =                                           # values can be left blank
 enable_keys                                         # no assignment delimiter given (aka '='), variable is assigned boolean value true
+multi_valued = abc
+multi_valued = xyz                                  # variables can be defined multiple times and retrieved as an array
 
 // Alternate line comment style
 
@@ -96,6 +98,8 @@ if ($cf->load()) {
 
     $v1 = $cf->get("var1");         # get value from var1, or null if doesn't exist
     $v9 = $cf->get("var9", 123);    # get value from var9, or 123 if doesn't exist
+
+    $arr = $cf->getArray("multi_valued");   # get all values for multi_valued as an array
 
     $mw = $cf->get("marbles.white", 1);     # get marbles.white, or 1 if doesn't exist
     $pw = $cf->get("sql.maria.auth.pw");    # get sql.maria.auth.pw, or null if doesn't exist
