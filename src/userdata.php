@@ -45,8 +45,18 @@ if (!defined('__USERDATA_GUARD__')) {
  * Handles validation of 
  */
 class UserData {
+    // Data location
     private $sFieldName;
     private $sMethod;
+
+    // Filters
+    private $sRegExp;
+    private $mRangeLow;
+    private $mRangeHigh;
+    private $iLengthMin;
+    private $iLengthMax;
+    private $aAllowed;
+    private $bAllowedStrict;
 
     // Errors
     private $aErrors;
@@ -60,6 +70,13 @@ class UserData {
     function __construct($sFieldName, $sMethod="ANY") {
         $this->aErrors = array();
         $this->sMethod = "NONE";
+        $this->sRegExp = null;
+        $this->mRangeLow = null;
+        $this->mRangeHigh = null;
+        $this->iLengthMin = null;
+        $this->iLengthMax = null;
+        $this->aAllowed = null;
+        $this->bAllowedStrict = false;
 
         if (!is_string($sFieldName)) {
             $this->aErrors[] = "Invalid UserData field name specified; name must be a string.");
@@ -107,6 +124,9 @@ class UserData {
     }
 
     public function getStr($mDefault=null) {
+        //TODO filterRegExp
+        //TODO filterLength
+        //TODO filterAllowed
         //TODO
     }
 
@@ -115,6 +135,8 @@ class UserData {
     }
 
     public function getInt($mDefault=null) {
+        //TODO filterRange
+        //TODO filterAllowed
         //TODO
     }
 
@@ -123,6 +145,8 @@ class UserData {
     }
 
     public function getFloat($mDefault=null) {
+        //TODO filterRange
+        //TODO filterAllowed
         //TODO
     }
 
@@ -135,6 +159,9 @@ class UserData {
     }
 
     public function getArray($mDefault=null) {
+        //TODO filterRegExp
+        //TODO filterLength
+        //TODO filterAllowed
         //TODO
     }
 
@@ -143,6 +170,44 @@ class UserData {
     }
 
     public function getFileArray($mDefault=null) {
+        //TODO
+    }
+
+    public function filterRegExp($sRegExp) {
+        $this->sRegExp = $sRegExp;
+    }
+
+    private function applyRegExp($mValue) {
+        //TODO
+    }
+
+    public function filterRange($mLow, $mHigh) {
+        //TODO
+        $this->mRangeLow = $mLow;
+        $this->mRangeHigh = $mHigh;
+    }
+
+    private function applyRange($mValue) {
+        //TODO
+    }
+
+    public function filterLength($iMin, $iMax) {
+        //TODO
+        $this->iLengthMin = $iMin;
+        $this->iLengthMax = $iMax;
+    }
+
+    private function applyLength($mValue) {
+        //TODO
+    }
+
+    public function filterAllowed($aAllowed, $bStrict=false) {
+        //TODO
+        $this->aAllowed = $aAllowed;
+        $this->bAllowedStrict = $bStrict;
+    }
+
+    private function applyAllowed($mValue) {
         //TODO
     }
 }
