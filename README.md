@@ -1,8 +1,8 @@
 web-utilities
 =======================
 
-Web-utilities is a set of simple-to-use tools designed to deal with some of the standard headaches
-when web programming with PHP. Each tool can be used independently of the rest.  
+Web-utilities is a set of simple-to-use tools designed to deal with some of the basic hurdles
+when web programming from scratch with PHP. Each class can be used independently of the rest.  
 
 * [configfile.php](#configfilephp) - Easy parser for config files
 * [dbconnect.php](#dbconnectphp) - Quick, safe interface for making MySQL/MariaDB queries
@@ -69,7 +69,7 @@ if (!$cf->load()) {
 $cf->preload(
     array(
         "email"=>"root@localhost",
-        "debug_mode=>false,
+        "debug_mode"=>false,
         "address.home.city"=>"Kalamazoo",
         "address.home.state"=>"Michigan"
     )
