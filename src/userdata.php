@@ -135,9 +135,21 @@ class UserData {
     }
 
     public function getInt($mDefault=null) {
-        //TODO filterRange
-        //TODO filterAllowed
-        //TODO
+        $iVal = null;
+        $sRaw = $this->getValue();
+        if (ctype_digit($sRaw)) {
+            $iVal = intval($sRaw);
+        }
+
+        $mValue = $this->applyRange($mValue);
+        if (!$this->isAllowed($iVal)) {
+            $iVal = $mDefault;
+        }
+
+        if ($iVal === null) {
+            $iVal = $mDefault;
+        }
+        return $iVal;
     }
 
     public function getInteger($mDefault=null) {
@@ -181,14 +193,35 @@ class UserData {
         //TODO
     }
 
+    /**
+     * Filter the value to be between two numbers (inclusive).
+     * To NOT filter one of the numbers (minimum or maximum), set it to null
+     * @param mixed mLow The minimum allowed value; integer, float, or null
+     * @param mixed mHigh The maximum allowed value; integer, float, or null
+     */
     public function filterRange($mLow, $mHigh) {
-        //TODO
         $this->mRangeLow = $mLow;
         $this->mRangeHigh = $mHigh;
     }
 
     private function applyRange($mValue) {
-        //TODO
+        if (is_int($mValue)) {
+            if ($this->mRangeLow !== null) {
+                $mValue = max($mValue,intval($this->mRangeLow));
+            }
+            if ($this->mRangeHigh !== null) {
+                $mValue = min($mValue,intval($this->mRangeHigh));
+            }
+        }
+        if (is_float($mValue)) {
+            if ($this->mRangeLow !== null) {
+                $mValue = max($mValue,floatval($this->mRangeLow));
+            }
+            if ($this->mRangeHigh !== null) {
+                $mValue = min($mValue,floatval($this->mRangeHigh));
+            }
+        }
+        return $mValue;
     }
 
     public function filterLength($iMin, $iMax) {
@@ -201,14 +234,22 @@ class UserData {
         //TODO
     }
 
+    /**
+     * Filter to only allow specific values
+     * @param mixed aAllowed An array of allowed values, or a single allowed value
+     * @param bool bStrict If set to true, will enforce type checks (see in_array())
+     */
     public function filterAllowed($aAllowed, $bStrict=false) {
-        //TODO
+        // Put single value into an array
+        if (!is_array($aAllowed)) {
+            $aAllowed = array($aAllowed);
+        }
         $this->aAllowed = $aAllowed;
         $this->bAllowedStrict = $bStrict;
     }
 
-    private function applyAllowed($mValue) {
-        //TODO
+    private function isAllowed($mValue) {
+        return in_array($mValue, $this->aAllowed, $this->bAllowedStrict);
     }
 }
 
