@@ -5,6 +5,7 @@ Web-utilities is a set of simple-to-use tools designed to deal with some of the 
 when web programming with PHP. Each tool can be used independently of the rest.  
 
 * [configfile.php](#configfilephp) - Easy parser for config files
+* [userdata.php](#userdataphp) - Simple validator for user data
 * [dbconnect.php](#dbconnectphp) - Quick, safe interface for making MySQL/MariaDB queries
 
 
@@ -105,6 +106,17 @@ $children = $cf->getArray("children.name");
 // value of $children would be the array: ('Alice','Bobby','Chris')
 ```
 
+
+userdata.php
+-----------------------
+A class to access and validate user data types
+  - TODO
+  - TODO
+
+Examples:  
+```
+TODO
+```
 
 dbconnect.php
 -----------------------
