@@ -157,13 +157,38 @@ class UserData {
     }
 
     public function getFloat($mDefault=null) {
-        //TODO filterRange
-        //TODO filterAllowed
-        //TODO
+        $fVal = null;
+        $sRaw = $this->getValue();
+        if (is_numeric($sRaw)) {
+            $fVal = floatval($sRaw);
+        }
+
+        $mValue = $this->applyRange($mValue);
+        if (!$this->isAllowed($fVal)) {
+            $fVal = $mDefault;
+        }
+
+        if ($fVal === null) {
+            $fVal = $mDefault;
+        }
+        return $fVal;
     }
 
+    /**
+     * Attempt to get a boolean value from the data
+     * If the string is a '1' or 'true' (case-insensitive), returns true
+     * @param mixed mDefault
+     * @return bool|null Returns true or false based on the parsed value, or null if field name does not exist
+     */
     public function getBool($mDefault=null) {
-        //TODO
+        $bVal = $this->getValue();
+        if ($bVal !== null) {
+            $bVal = false;
+            if (in_array($bVal, array('1','true'))) {
+                $bVal = true;
+            }
+        }
+        return $bVal;
     }
 
     public function getBoolean($mDefault=null) {
