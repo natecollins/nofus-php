@@ -207,17 +207,50 @@ class UserData {
         return $this->getBool($mDefault);
     }
 
-    public function getArray($mDefault=null) {
-        //TODO filterRegExp
-        //TODO filterLength
-        //TODO filterAllowed
-        //TODO
+    /**
+     * Get an array of string values
+     *
+     */
+    public function getStrArray($mDefault=null) {
+        $aValues = $this->getValue();
+        $aReturn = array();
+        if (!is_array($aValues)) {
+            $aReturn = $mDefault;
+        }
+        else {
+            foreach ($aValues as $sValue) {
+                //TODO filterRegExp
+                //TODO filterLength
+                //TODO filterAllowed
+            }
+        }
+        return $aReturn;
     }
 
+    public function getStringArray($mDefault=null) {
+        return $this->getStrArray();
+    }
+
+    /**
+     * Get information about a single uploaded file
+     * @param mixed mDefault Return this value if no matching value was found
+     * @return array A file array with keys (or mDefault if field was not found):
+     *      name    => The original name of the uploaded file
+     *      type    => The mime type of the file (can be falsified by client)
+     *      size    => The size of the uploaded file
+     *      tmp_name=> The file location and name as it exists on the server
+     *      error   => An error code if there was a problem with the upload (0 means no error)
+     *                 See http://php.net/manual/en/features.file-upload.errors.php
+     */
     public function getFile($mDefault=null) {
         //TODO
     }
 
+    /**
+     * Get information about one or more uploaded files
+     * @param mixed mDefault Return this value if no matching value was found
+     * @return array An array of file arrays, see return of getFile() for contents of a file array
+     */
     public function getFileArray($mDefault=null) {
         //TODO
     }
