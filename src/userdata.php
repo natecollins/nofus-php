@@ -55,6 +55,7 @@ class UserData {
     private $mRangeHigh;
     private $iLengthMin;
     private $iLengthMax;
+    private $bTruncateLength;
     private $aAllowed;
     private $bAllowedStrict;
 
@@ -75,6 +76,7 @@ class UserData {
         $this->mRangeHigh = null;
         $this->iLengthMin = null;
         $this->iLengthMax = null;
+        $this->bTruncateLength = false;
         $this->aAllowed = null;
         $this->bAllowedStrict = false;
 
@@ -124,10 +126,19 @@ class UserData {
     }
 
     public function getStr($mDefault=null) {
-        //TODO filterRegExp
-        //TODO filterLength
-        //TODO filterAllowed
-        //TODO
+        $sValue = $this->getValue();
+        if (!$this->matchesRegExp()) {
+            $this->aErrors[] = "Value does not match required pattern.");
+            $sValue = $mDefault;
+        }
+        $sValue = $this->applyLength($sValue);
+        if ($sValue === null) {
+            $sValue = $mDefault;
+        }
+        if (!$this->isAllowed($fVal)) {
+            $sValue = $mDefault;
+        }
+        return $sValue;
     }
 
     public function getString($mDefault=null) {
@@ -181,10 +192,11 @@ class UserData {
      * @return bool|null Returns true or false based on the parsed value, or null if field name does not exist
      */
     public function getBool($mDefault=null) {
-        $bVal = $this->getValue();
-        if ($bVal !== null) {
+        $bVal = $mDefault;
+        $sVal = $this->getValue();
+        if ($sVal !== null) {
             $bVal = false;
-            if (in_array($bVal, array('1','true'))) {
+            if (in_array(strtolower($sVal), array('1','true'))) {
                 $bVal = true;
             }
         }
@@ -214,8 +226,8 @@ class UserData {
         $this->sRegExp = $sRegExp;
     }
 
-    private function applyRegExp($mValue) {
-        //TODO
+    private function matchesRegExp($mValue) {
+        return (is_string($mValue) && is_string($this->sRegExp) && preg_match($this->sRegExp, $mValue) === 1);
     }
 
     /**
@@ -249,14 +261,42 @@ class UserData {
         return $mValue;
     }
 
-    public function filterLength($iMin, $iMax) {
-        //TODO
+    /**
+     * Filter the length of string values; optionally truncates if too long
+     * To NOT have a maximum value, set iMax to null
+     * @param int mLow The minimum length of a string
+     * @param int|null mHigh The maximum length of a string; set to null to not have a maximum
+     * @param bool bTruncate If set to true, will truncate string if over iMax with no error
+     */
+    public function filterLength($iMin, $iMax, $bTruncate=false) {
         $this->iLengthMin = $iMin;
         $this->iLengthMax = $iMax;
+        $this->bTruncateLength = $bTruncate;
     }
 
-    private function applyLength($mValue) {
-        //TODO
+    /**
+     *
+     * @return string|null The proper length value, or null if an invalid length
+     */
+    private function applyLength($sValue) {
+        $mReturn = null;
+        if (is_string($sValue)) {
+            if (strlen($sValue) < $this->iLengthMin) {
+                $this->aErrors[] = "Value is shorter than the minimum length.");
+            }
+            elseif ($this->iLengthMax !== null && strlen($sValue) > $this->iLengthMax) {
+                if ($this->bTruncateLength) {
+                    $mReturn = substr($mValue, 0, $this->iLengthMax);
+                }
+                else {
+                    $this->aErrors[] = "Value is longer than the maximum length.");
+                }
+            }
+            else {
+                $mReturn = $sValue;
+            }
+        }
+        return $mReturn;
     }
 
     /**
