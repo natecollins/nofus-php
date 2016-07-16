@@ -33,7 +33,54 @@ or implied, of Nathan Collins.
  * Use examples
  ****************************************
 
-TODO
+# Grab a string from a 'firstname' field from _GET, _POST, or _COOKIE; which ever is found first
+$udFirst = new UserData('firstname');
+$first = $udFirst->getStr();
+# If field 'firstname' doesn't exist, getStr() will return null by default
+
+# Grab an integer from field 'age' in _POST
+$udAge = new UserData('age', 'POST');
+# Set minimum and maximim allowed
+$udAge->filterRange(0, 120);
+# Will default to 0 if 'age' if outside of range specified or if doesn't exist
+$age = $ud->getInt(0)
+
+# Alternate way to create UserData
+$udHeight = UserData::create('height', 'GET');
+$udHeight->filterRange(0.0, 8.9);
+$height = $udHeight->getFloat();
+
+# Filter length and regular expression
+$udPhone = new UserData('phone');
+$udPhone->filterLength(7,10);
+$udPhone->filterRegExp('/^\d{7,10}$/');
+$phone = $udPhone->getStr();
+
+# Filter to only allowed values
+$udChoice = new UserData('choice');
+# Specify allowed option
+$udChoice->filterAllowed(array('chicken','beef','fish'));
+# Default to 'chicken' if value not in allowed options
+$choice = $udChoice->getStr('chicken');
+
+# Get boolean; will be true for values of '1' or 'true'
+$udEnabled = new UserData('enabled', 'COOKIE');
+# Default to false if field doesn't exist
+$enabled = $udEnabled->getBool(false);
+
+# Get array of values from field name 'books[]'
+$udBooks = new UserData('books');
+# Default to empty array if no values found
+$books = $udBooks->getStrArray(array());
+
+# Get a info on uploaded file
+$udFile = new UserData('photo')
+$file_info = $udFile->getFile();
+
+# Get info on array of uploaded files from field 'pictures[]'
+$udFiles = new UserData('pictures')
+# Default to empty array if no files found or field doesn't exist
+$file_array = $udFiles->getFileArray(array());
 
 */
 
@@ -185,6 +232,10 @@ class UserData {
         return $fVal;
     }
 
+    public function getDouble($mDefault=null) {
+        return $this->getFloat($mDefault);
+    }
+
     /**
      * Attempt to get a boolean value from the data
      * If the string is a '1' or 'true' (case-insensitive), returns true
@@ -234,7 +285,11 @@ class UserData {
     }
 
     public function getStringArray($mDefault=null) {
-        return $this->getStrArray();
+        return $this->getStrArray($mDefault);
+    }
+
+    public function getArray($mDefault=null) {
+        return $this->getStrArray($mDefault);
     }
 
     /**
