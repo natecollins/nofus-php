@@ -6,6 +6,7 @@ when web programming from scratch with PHP. Each class can be used independently
 
 * [configfile.php](#configfilephp) - Easy parser for config files
 * [userdata.php](#userdataphp) - Simple validator for user data
+* [logger.php](#loggerphp) - Simple logger class with built-in file logging implementation
 * [dbconnect.php](#dbconnectphp) - Quick, safe interface for making MySQL/MariaDB queries
 
 
@@ -136,8 +137,17 @@ $cf->load();
 userdata.php
 -----------------------
 A class to access and validate user data types
-  - TODO
-  - TODO
+  - TODO = Work in progress
+
+Examples:  
+```
+TODO
+```
+
+logger.php
+-----------------------
+A class to create logs, with a built-in simple file-logging implementation
+  - TODO = Work in progress
 
 Examples:  
 ```
