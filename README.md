@@ -1,8 +1,8 @@
 web-utilities
 =======================
 
-Web-utilities is a set of simple-to-use tools designed to deal with some of the standard headaches
-when web programming with PHP. Each tool can be used independently of the rest.  
+Web-utilities is a set of simple-to-use tools designed to deal with some of the basic hurdles
+when web programming from scratch with PHP. Each class can be used independently of the rest.  
 
 * [configfile.php](#configfilephp) - Easy parser for config files
 * [userdata.php](#userdataphp) - Simple validator for user data
@@ -11,8 +11,7 @@ when web programming with PHP. Each tool can be used independently of the rest.
 
 configfile.php
 -----------------------
-A class to read in plain text config files.
-
+A class to read in plain text config files.  
   - Simple "variable = value" syntax
   - Allows quoted string values
   - Allows line comments, including end line
@@ -20,6 +19,7 @@ A class to read in plain text config files.
   - Allows scope section definitions
   - Allows valueless variables
   - Allows multiple values per variable name
+  - Can preload default values
 
 **Sample Config File**:  
 ```
@@ -56,12 +56,25 @@ name = Chris
 
 **Examples:**
 ```php
+# Create config file object and attempt to load it
 $cf = new ConfigFile('app.conf');
 
 if (!$cf->load()) {
-    echo "Could not load file!";
+    echo "Could not load file!" . PHP_EOL;
+    print_r( $cf->errors() ); // an array of reasons for failure to load
     exit(1);
 }
+
+####################################################
+# Optionally preload default values (will NOT override already loaded values)
+$cf->preload(
+    array(
+        "email"=>"root@localhost",
+        "debug_mode"=>false,
+        "address.home.city"=>"Kalamazoo",
+        "address.home.state"=>"Michigan"
+    )
+);
 
 ####################################################
 # Simple Variable
@@ -106,6 +119,19 @@ $children = $cf->getArray("children.name");
 // value of $children would be the array: ('Alice','Bobby','Chris')
 ```
 
+**Loading only loads the first time**  
+Calling the `load()` method only parses and loads the config file the first time for any ConfigFile
+object. Subsequent calls check if the file was successfully loaded the first time, and then doesn't
+bother to re-parse.  
+
+If you want to force a config file to re-load a file, you must first `reset()` the ConfigFile object
+and then `load()` it again. Note that this will also clear out any `preload()` variables, so you will
+have to `preload()` them again after calling `reset()`.  
+```php
+$cf->reset();
+$cf->load();
+```
+
 
 userdata.php
 -----------------------
@@ -120,8 +146,7 @@ TODO
 
 dbconnect.php
 -----------------------
-A class to handle MySQL/MariaDB compatible database connections. Features include:
-
+A class to handle MySQL/MariaDB compatible database connections. Features include:  
   - Automatic failover between multiple servers
   - Safe escaping of data via prepared statements
   - Based off PDO extension

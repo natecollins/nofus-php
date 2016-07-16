@@ -47,6 +47,8 @@ badquoted = this is "NOT" a quoted string           # value doesn't start with a
 oddquote = "not a quoted value" cause extra         # value will parse as: "\"not a quoted value\" cause extra"
 novalue =                                           # values can be left blank
 enable_keys                                         # no assignment delimiter given (aka '='), variable is assigned boolean value true
+multi_valued = abc
+multi_valued = xyz                                  # variables can be defined multiple times and retrieved as an array
 
 // Alternate line comment style
 
@@ -84,8 +86,20 @@ a..b = c                # scopes cannot be blank
 
 $cf = new ConfigFile("test.conf");
 if ($cf->load()) {
+    # can preload default values, even after loading
+    $cf->preload(
+        array(
+            "var1"=>12,
+            "name"=>"none",
+            "enable_keys"=>false,
+            "marbles.green"=>0
+        )
+    );
+
     $v1 = $cf->get("var1");         # get value from var1, or null if doesn't exist
     $v9 = $cf->get("var9", 123);    # get value from var9, or 123 if doesn't exist
+
+    $arr = $cf->getArray("multi_valued");   # get all values for multi_valued as an array
 
     $mw = $cf->get("marbles.white", 1);     # get marbles.white, or 1 if doesn't exist
     $pw = $cf->get("sql.maria.auth.pw");    # get sql.maria.auth.pw, or null if doesn't exist
@@ -108,6 +122,7 @@ if (!defined('__CONFIGFILE_GUARD__')) {
 class ConfigFile {
     // File Info
     private $sFilePath;
+    private $bLoaded;
 
     // Static parse values
     private $aLineCommentStart;         # multiples allowed
@@ -127,6 +142,7 @@ class ConfigFile {
 
     function __construct($sFileToOpen=null) {
         $this->sFilePath = null;
+        $this->bLoaded = false;
 
         $this->aLineCommentStart = array('#','//');
         $this->sVarValDelimiter = "=";
@@ -167,10 +183,24 @@ class ConfigFile {
     }
 
     /**
+     * Reset the config file object, basically "unloading" everything so it can be reloaded.
+     */
+    public function reset() {
+        $this->bLoaded = false;
+        $this->aErrors = array();
+        $this->aValues = array();
+    }
+
+    /**
      * Attempt to open and parse the config file.
      * @return boolean True if the file loaded without errors, false otherwise
      */
     public function load() {
+        # If we've successfully loaded this file before, skip the load and return success
+        if ($this->bLoaded == true) {
+            return true;
+        }
+
         # If file is null, then this is a scope query result, do nothing
         if ($this->sFilePath === null) {
             $this->aErrors[] = "Cannot load file; no file was given. (Note: you cannot load() a query result.)";
@@ -194,8 +224,9 @@ class ConfigFile {
         }
 
         # If parsing lines generated errors, return false
-        if (count($this->aErrors) > 0) return false;
+        if (count($this->aErrors) > 0) { return false; }
         # Make it past all error conditions, so return true
+        $this->bLoaded = true;
         return true;
     }
 
