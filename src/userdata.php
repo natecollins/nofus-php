@@ -81,7 +81,7 @@ class UserData {
         $this->bAllowedStrict = false;
 
         if (!is_string($sFieldName)) {
-            $this->aErrors[] = "Invalid UserData field name specified; name must be a string.");
+            $this->aErrors[] = "Invalid UserData field name specified; name must be a string.";
         }
         else {
             $this->sFieldName = $sFieldName;
@@ -127,8 +127,8 @@ class UserData {
 
     public function getStr($mDefault=null) {
         $sValue = $this->getValue();
-        if (!$this->matchesRegExp()) {
-            $this->aErrors[] = "Value does not match required pattern.");
+        if (!$this->matchesRegExp($sValue)) {
+            $this->aErrors[] = "Value for {$this->sFieldName} does not match required pattern.";
             $sValue = $mDefault;
         }
         $sValue = $this->applyLength($sValue);
@@ -214,14 +214,20 @@ class UserData {
     public function getStrArray($mDefault=null) {
         $aValues = $this->getValue();
         $aReturn = array();
-        if (!is_array($aValues)) {
-            $aReturn = $mDefault;
-        }
-        else {
+        if (is_array($aValues)) {
             foreach ($aValues as $sValue) {
-                //TODO filterRegExp
-                //TODO filterLength
-                //TODO filterAllowed
+                if (!$this->matchesRegExp($sValue)) {
+                    $this->aErrors[] = "A value from {$this->sFieldName} array does not match required pattern.";
+                    $sValue = $mDefault;
+                }
+                $sValue = $this->applyLength($sValue);
+                if ($sValue === null) {
+                    $sValue = $mDefault;
+                }
+                if (!$this->isAllowed($fVal)) {
+                    $sValue = $mDefault;
+                }
+                $aReturn[] = $sValue;
             }
         }
         return $aReturn;
@@ -243,7 +249,11 @@ class UserData {
      *                 See http://php.net/manual/en/features.file-upload.errors.php
      */
     public function getFile($mDefault=null) {
-        //TODO
+        $aFile = $mDefault;
+        if (array_key_exists($this->sFieldName, $_FILES)) {
+            $aFile = $_FILES[$this->sFieldName];
+        }
+        return $aFile;
     }
 
     /**
@@ -252,7 +262,21 @@ class UserData {
      * @return array An array of file arrays, see return of getFile() for contents of a file array
      */
     public function getFileArray($mDefault=null) {
-        //TODO
+        $aFiles = $mDefault;
+        if (array_key_exists($this->sFieldName, $_FILES) && is_array($_FILES[$this->sFieldName]['name'])) {
+            $aFiles = array();
+            $aFileKeys = array_keys($_FILES[$this->sFieldName]['name']);
+            foreach ($aFileKeys as $iFileId) {
+                $aFiles[] = array(
+                    'name'=>$_FILES[$this->sFieldName]['name'][$iFileId],
+                    'type'=>$_FILES[$this->sFieldName]['type'][$iFileId],
+                    'size'=>$_FILES[$this->sFieldName]['size'][$iFileId],
+                    'tmp_name'=>$_FILES[$this->sFieldName]['tmp_name'][$iFileId],
+                    'error'=>$_FILES[$this->sFieldName]['error'][$iFileId]
+                );
+            }
+        }
+        return $aFiles;
     }
 
     public function filterRegExp($sRegExp) {
@@ -315,14 +339,14 @@ class UserData {
         $mReturn = null;
         if (is_string($sValue)) {
             if (strlen($sValue) < $this->iLengthMin) {
-                $this->aErrors[] = "Value is shorter than the minimum length.");
+                $this->aErrors[] = "Value is shorter than the minimum length.";
             }
             elseif ($this->iLengthMax !== null && strlen($sValue) > $this->iLengthMax) {
                 if ($this->bTruncateLength) {
                     $mReturn = substr($mValue, 0, $this->iLengthMax);
                 }
                 else {
-                    $this->aErrors[] = "Value is longer than the maximum length.");
+                    $this->aErrors[] = "Value is longer than the maximum length.";
                 }
             }
             else {
