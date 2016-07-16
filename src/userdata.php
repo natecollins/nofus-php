@@ -89,7 +89,7 @@ if (!defined('__USERDATA_GUARD__')) {
     define('__USERDATA_GUARD__',true);
 
 /**
- * Handles validation of 
+ * Handles validation of User/Client Data
  */
 class UserData {
     // Data location
@@ -431,6 +431,5 @@ class UserData {
 }
 
 } // Include guard end
-
 
 ?>
