@@ -33,7 +33,24 @@ or implied, of Nathan Collins.
  * Use examples
  ****************************************
 
-TODO
+# Initialize logger with built-in file logger; default level logs all levels
+Logger::initialize('/path/to/file.log')
+
+# Initialize logger with customize logger levels
+Logger::initialize('/path/to/file.log', Logger::LOG_ERROR | Logger::LOG_CRITICAL);
+
+# Disable logger
+Logger::disable();
+
+# Register custom logger instance which implements LoggingInterface
+Logger::register( new CustomLogger() );
+
+# Make log entries
+Logger::debug("Debug!");
+Logger::notice("Notice!");
+Logger::warning("Warning!");
+Logger::error("Error!");
+Logger::critical("Critical!");
 
 */
 
@@ -71,21 +88,37 @@ class Logger implements LoggingInterface {
         $this->iLogLevel = self::LOG_ALL;
     }
 
+    /**
+     * Register a custom logger instead of using the built-in one
+     * @param oLogger An instance of a class that implements LoggingInterface
+     */
     static public function register($oLogger) {
         // TODO ensure object implements LoggingInterface
         self::$oLogger = $oLogger;
     }
 
     static public function disable() {
-        self::$oLogger = false;
+        self::$oLogger = null;
+        self::iLogLevel = self::LOG_NONE;
     }
 
     static public function initialize($sLogFile, $iLogLevel=self::LOG_ALL) {
-        //
+        //TODO
+        //TODO check if log file exists is writable
+        //TODO if log files doesn't exist, check if directory is writable
     }
 
     public function makeLog($sEntry, $iLogLevel) {
-        //
+        if (self::iLogLevel !== self::LOG_NONE) {
+            if (self::$oLogger === null) {
+                trigger_error("Logger failure. Logger not initialized.", E_USER_ERROR);
+                exit(1);
+            }
+
+            if (!file_put_contents($this->sLogFile, $sEntry, FILE_APPEND | LOCK_EX)) {
+                //TODO could not write log to file
+            }
+        }
     }
 
     static public function processLog($sEntry, $iLogLevel) {
