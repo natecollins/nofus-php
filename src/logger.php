@@ -83,9 +83,9 @@ class Logger implements LoggingInterface {
     private $sLogFile;
     private $iLogLevel;
 
-    private function __construct() {
-        $this->sLogFile = null;
-        $this->iLogLevel = self::LOG_ALL;
+    private function __construct($sLogFile=null, $iLogLevel=self::LOG_ALL) {
+        $this->sLogFile = $sLogFile;
+        $this->iLogLevel = $iLogLevel;
     }
 
     /**
@@ -93,37 +93,52 @@ class Logger implements LoggingInterface {
      * @param oLogger An instance of a class that implements LoggingInterface
      */
     static public function register($oLogger) {
-        // TODO ensure object implements LoggingInterface
+        if (!class_implements('LoggingInterface')) {
+            trigger_error("Logger failure. Can only register classes which implement LoggerInterface.", E_USER_ERROR);
+            exit(1);
+        }
         self::$oLogger = $oLogger;
     }
 
     static public function disable() {
         self::$oLogger = null;
-        self::iLogLevel = self::LOG_NONE;
+        self::$iLogLevel = self::LOG_NONE;
     }
 
     static public function initialize($sLogFile, $iLogLevel=self::LOG_ALL) {
-        //TODO
-        //TODO check if log file exists is writable
-        //TODO if log files doesn't exist, check if directory is writable
+        $bFileWritable = is_file($sLogFile) && is_writable($sLogFile);
+        $bCanCreateFile = !is_file($sLogFile) && is_writable(dirname($sLogFile));
+        if ($bFileWritable || $bCanCreateFile) {
+            self::$oLogger = new Logger($sLogFile, $iLogLevel);
+        }
+        else {
+            trigger_error("Logger failure. Can not initialize; log file not writable.", E_USER_ERROR);
+            exit(1);
+        }
     }
 
     public function makeLog($sEntry, $iLogLevel) {
-        if (self::iLogLevel !== self::LOG_NONE) {
-            if (self::$oLogger === null) {
-                trigger_error("Logger failure. Logger not initialized.", E_USER_ERROR);
-                exit(1);
-            }
+        if (($this->iLogLevel & $iLogLevel) !== self::LOG_NONE) {
+            $sTimestamp = date("Y-m-d H:i:s");
+            $sLevel = 'CUSTOM';
+            if ($iLogLevel == self::LOG_CRITICAL) { $sLevel = 'CRITICAL'; }
+            elseif ($iLogLevel == self::LOG_ERROR) { $sLevel = 'ERROR'; }
+            elseif ($iLogLevel == self::LOG_WARNING) { $sLevel = 'WARNING'; }
+            elseif ($iLogLevel == self::LOG_NOTICE) { $sLevel = 'NOTICE'; }
+            elseif ($iLogLevel == self::LOG_DEBUG) { $sLevel = 'DEBUG'; }
 
+            $sEntry = "[{$sTimestamp}] [{$sLevel}] {$sEntry}" . PHP_EOL;
             if (!file_put_contents($this->sLogFile, $sEntry, FILE_APPEND | LOCK_EX)) {
-                //TODO could not write log to file
+                trigger_error("Logger failure. Could not write to log file.", E_USER_ERROR);
+                exit(1);
             }
         }
     }
 
     static public function processLog($sEntry, $iLogLevel) {
         if (self::$oLogger === null) {
-            //TODO logger not initialized/disabled/registered
+            trigger_error("Logger failure. Logger not initialized.", E_USER_ERROR);
+            exit(1);
         }
         // Skip if logging is disabled
         elseif (self::$oLogger !== false) {
