@@ -147,11 +147,30 @@ TODO
 logger.php
 -----------------------
 A class to create logs, with a built-in simple file-logging implementation
-  - TODO = Work in progress
+  - Very simple to setup and use
+  - Can register custom logger implementations to replace built-in file-logger
+  - Can specify log levels
 
 Examples:  
 ```
-TODO
+# Initialize logger with built-in file logger; default level logs all levels
+Logger::initialize('/path/to/file.log')
+
+# Initialize logger with customize logger levels
+Logger::initialize('/path/to/file.log', Logger::LOG_ERROR | Logger::LOG_CRITICAL);
+
+# Disable logger
+Logger::disable();
+
+# Register custom logger instance which implements LoggingInterface
+Logger::register( new CustomLogger() );
+
+# Make log entries
+Logger::debug("Debug!");
+Logger::notice("Notice!");
+Logger::warning("Warning!");
+Logger::error("Error!");
+Logger::critical("Critical!");
 ```
 
 dbconnect.php
