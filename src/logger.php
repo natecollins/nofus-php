@@ -93,8 +93,8 @@ class Logger implements LoggingInterface {
      * @param oLogger An instance of a class that implements LoggingInterface
      */
     static public function register($oLogger) {
-        if (!class_implements('LoggingInterface')) {
-            trigger_error("Logger failure. Can only register classes which implement LoggerInterface.", E_USER_ERROR);
+        if (!in_array('LoggingInterface',class_implements($oLogger))) {
+            trigger_error("Logger failure. Can only register classes which implement LoggingInterface.", E_USER_ERROR);
             exit(1);
         }
         self::$oLogger = $oLogger;
