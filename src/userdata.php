@@ -199,7 +199,7 @@ class UserData {
             $iVal = intval($sRaw);
         }
 
-        $mValue = $this->applyRange($mValue);
+        $iVal = $this->applyRange($iVal);
         if (!$this->isAllowed($iVal)) {
             $iVal = $mDefault;
         }
@@ -221,7 +221,7 @@ class UserData {
             $fVal = floatval($sRaw);
         }
 
-        $mValue = $this->applyRange($mValue);
+        $fVal = $this->applyRange($fVal);
         if (!$this->isAllowed($fVal)) {
             $fVal = $mDefault;
         }
@@ -426,6 +426,8 @@ class UserData {
     }
 
     private function isAllowed($mValue) {
+        // Allow all if no limits were set
+        if ($this->aAllowed === null) { return true; }
         return in_array($mValue, $this->aAllowed, $this->bAllowedStrict);
     }
 }
