@@ -182,7 +182,7 @@ class UserData {
         if ($sValue === null) {
             $sValue = $mDefault;
         }
-        if (!$this->isAllowed($fVal)) {
+        if (!$this->isAllowed($sValue)) {
             $sValue = $mDefault;
         }
         return $sValue;
@@ -275,7 +275,7 @@ class UserData {
                 if ($sValue === null) {
                     $sValue = $mDefault;
                 }
-                if (!$this->isAllowed($fVal)) {
+                if (!$this->isAllowed($sValue)) {
                     $sValue = $mDefault;
                 }
                 $aReturn[] = $sValue;
