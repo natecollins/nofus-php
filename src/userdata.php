@@ -339,7 +339,7 @@ class UserData {
     }
 
     private function matchesRegExp($mValue) {
-        return (is_string($mValue) && is_string($this->sRegExp) && preg_match($this->sRegExp, $mValue) === 1);
+        return $this->sRegExp === null || (is_string($mValue) && is_string($this->sRegExp) && preg_match($this->sRegExp, $mValue) === 1);
     }
 
     /**
