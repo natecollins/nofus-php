@@ -208,6 +208,15 @@ class DBConnect {
     }
 
     /**
+     * Get the current PDO instance.
+     *
+     * @return PDO|null The current instance of the PDO connection, or null if no connection exists.
+     */
+    public function getPDO() {
+        return $this->cInstance;
+    }
+
+    /**
      * Create a PDO connection to a MySQL server
      *
      * @param boolean $bReinitialize If set to true, then any curent connection is terminated and a new one is created
