@@ -108,6 +108,8 @@ if ($cf->load()) {
     $svr = $sql->get('auth.server');        # get auth.server (from sql.maria scope), or null if doesn't exist
 
     $bad = $cf->get('does.not.exist');      # attempt to get a non-existant scope, returns null
+
+    $sub_scopes = $cf->enumerateScope("sql.maria.auth"); # returns array of ['server','user','pw','db']
 }
 
 */
@@ -627,6 +629,35 @@ class ConfigFile {
      */
     public function getAll() {
         return $this->aValues;
+    }
+
+    /**
+     * Query to return all avaialble scopes for a given scope level. An empty
+     * string (the default) will return top level scopes.
+     * @param string sQuery A scope level to match, or empty string to query for top level scopes
+     * @return array An array of available scopes for the given scope level
+     */
+    public function enumerateScope($sQuery="") {
+        $aScopeValues = array();
+        $aAllScopes = array_keys($this->aValues);
+        if ($sQuery !== "") { $sQuery .= "."; }
+        foreach ($aAllScopes as $sScope) {
+            if ($sQuery === "" || strpos($sScope, $sQuery) === 0) {
+                $sSubScope = substr($sScope, strlen($sQuery));
+                $iScopeEnd = strpos($sSubScope, ".");
+                // Ignore top level values
+                if ($sQuery === "" && $iScopeEnd === false) {
+                    continue;
+                }
+                $sVal = substr($sSubScope, 0);
+                // Grab only the next level of scope
+                if ($iScopeEnd !== false) {
+                    $sVal = substr($sSubScope, 0, $iScopeEnd);
+                }
+                $aScopeValues[] = $sVal;
+            }
+        }
+        return array_values(array_unique($aScopeValues));
     }
 
 }

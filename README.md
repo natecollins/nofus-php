@@ -20,6 +20,7 @@ A class to read in plain text config files.
   - Allows scope section definitions
   - Allows valueless variables
   - Allows multiple values per variable name
+  - Can enumerate available scopes
   - Can preload default values
 
 **Sample Config File**:  
@@ -118,6 +119,13 @@ $first_child = $cf->get("children.name");
 $children = $cf->getArray("children.name");
 // value of $first_child would be the string 'Alice'
 // value of $children would be the array: ('Alice','Bobby','Chris')
+
+####################################################
+# Enumerate available scopes
+$scopes1 = $cf->emumerateScope("address.work");
+$scopes2 = $cf->emumerateScope();   // Default enumerates top level scope
+// value of $scopes1 would be the array: ('line_1','line_2','state','city')
+// value of $scipes2 would be the array: ('date','address','children')
 ```
 
 **Loading only loads the first time**  
