@@ -125,7 +125,7 @@ $children = $cf->getArray("children.name");
 $scopes1 = $cf->emumerateScope("address.work");
 $scopes2 = $cf->emumerateScope();   // Default enumerates top level scope
 // value of $scopes1 would be the array: ('line_1','line_2','state','city')
-// value of $scipes2 would be the array: ('date','address','children')
+// value of $scipes2 would be the array: ('email','name','debug_mode','nickname','date','address','children')
 ```
 
 **Loading only loads the first time**  

@@ -632,10 +632,10 @@ class ConfigFile {
     }
 
     /**
-     * Query to return all avaialble scopes for a given scope level. An empty
-     * string (the default) will return top level scopes.
+     * Query to return all avaialble scopes/variables for a given scope level. An empty
+     * string (the default) will return top level scopes/variables.
      * @param string sQuery A scope level to match, or empty string to query for top level scopes
-     * @return array An array of available scopes for the given scope level
+     * @return array An array of available scopes/variables for the given scope level
      */
     public function enumerateScope($sQuery="") {
         $aScopeValues = array();
@@ -645,10 +645,6 @@ class ConfigFile {
             if ($sQuery === "" || strpos($sScope, $sQuery) === 0) {
                 $sSubScope = substr($sScope, strlen($sQuery));
                 $iScopeEnd = strpos($sSubScope, ".");
-                // Ignore top level values
-                if ($sQuery === "" && $iScopeEnd === false) {
-                    continue;
-                }
                 $sVal = substr($sSubScope, 0);
                 // Grab only the next level of scope
                 if ($iScopeEnd !== false) {
