@@ -260,7 +260,8 @@ class UserData {
 
     /**
      * Get an array of string values
-     *
+     * @param mixed mDefault The default value to assign to each value that doesn't match all filters
+     * @return array
      */
     public function getStrArray($mDefault=null) {
         $aValues = $this->getValue();
@@ -290,6 +291,42 @@ class UserData {
 
     public function getArray($mDefault=null) {
         return $this->getStrArray($mDefault);
+    }
+
+    /**
+     * Get an array of integer values
+     * @param mixed mDefault The default value to assign to each value that doesn't match all filters
+     * @return array
+     */
+    public function getIntArray($mDefault=null) {
+        $aValues = $this->getValue();
+        $aReturn = array();
+        if (is_array($aValues)) {
+            foreach ($aValues as $sValue) {
+                $iVal = null;
+                if (ctype_digit($sValue)) {
+                    $iVal = intval($sValue);
+                }
+
+                $iVal = $this->applyRange($iVal);
+                if (!$this->isAllowed($iVal)) {
+                    $iVal = $mDefault;
+                }
+
+                if ($iVal === null) {
+                    $iVal = $mDefault;
+                }
+                $aReturn[] = $iVal;
+            }
+        }
+        return $aReturn;
+    }
+
+    /**
+     * Alias to getIntArray function
+     */
+    public function getIntegerArray($mDefault=null) {
+        return $this->getIntArray($mDefault);
     }
 
     /**
