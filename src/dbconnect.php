@@ -520,7 +520,7 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
 
             # if insert id was pulled, return it
             if ( !empty($iInsertId) && intVal($iInsertId) > 0 ) {
-                return $iInsertId;
+                return intVal($iInsertId);
             }
             return null;
         }
