@@ -195,7 +195,7 @@ class UserData {
     public function getInt($mDefault=null) {
         $iVal = null;
         $sRaw = $this->getValue();
-        if (ctype_digit($sRaw)) {
+        if (ctype_digit($sRaw) || (substr($sRaw,0,1) === '-' && ctype_digit(substr($sRaw,1)))) {
             $iVal = intval($sRaw);
         }
 
