@@ -132,6 +132,8 @@ class ConfigFile {
     private $sScopeDelimiter;           # character(s) that divides scope levels
     private $sQuoteChar;                # the quote character
     private $sEscapeChar;               # the escape character
+    private $sScopeCharSet;             # RegExp pattern of characters allow for scopes
+    private $sVarNameCharSet;           # RegExp pattern of characters allowed for variable names
 
     // Dynamic parse values
     private $sCurrentScope;
@@ -151,6 +153,8 @@ class ConfigFile {
         $this->sScopeDelimiter = ".";
         $this->sQuoteChar = "\"";
         $this->sEscapeChar = "\\";
+        $this->sScopeCharSet = "a-zA-Z0-9_\-";
+        $this->sVarNameCharSet = "a-zA-Z0-9_\-";
 
         $this->sCurrentScope = "";
 
@@ -161,6 +165,73 @@ class ConfigFile {
         if ($sFileToOpen != null && is_string($sFileToOpen)) {
             $this->sFilePath = $sFileToOpen;
         }
+    }
+
+    /**
+     * Change what strings indicate the start of a comment.
+     * WARNING: Change this at your own risk. Setting unusual values here may break parsing.
+     * @param array|string mLineCommentStart An array containing strings which indicate the start of a comment
+     *                  OR a string that indicates the start of a comment
+     */
+    public function overrideCommentStarts($mLineCommentStart) {
+        if (!is_array($mLineCommentStart) && is_string($mLineCommentStart)) {
+            $mLineCommentStart = array($mLineCommentStart);
+        }
+        $this->aLineCommentStart = $mLineCommentStart;
+    }
+
+    /**
+     * Change the delimiter used between variable name and values.
+     * WARNING: Change this at your own risk. Setting unusual values here may break parsing.
+     * @param string sVarValDelimiter The string to indicate the delimiter between variable name and value
+     */
+    public function overrideVariableDelimiter($sVarValDelimiter) {
+        $this->sVarValDelimiter = $sVarValDelimiter;
+    }
+
+    /**
+     * Change the string used as a delimiter between scopes.
+     * WARNING: Change this at your own risk. Setting unusual values here may break parsing.
+     * @param string sScopeDelimiter The string to indicate the delimiter between scopes
+     */
+    public function overrideScopeDelimiter($sScopeDelimiter) {
+        $this->sScopeDelimiter = $sScopeDelimiter;
+    }
+
+    /**
+     * Change the character used to quote variable values.
+     * WARNING: Change this at your own risk. Setting unusual values here may break parsing.
+     * @param string sQuoteChar The character to indicate the start and end of a quoted value
+     */
+    public function overrideQuoteCharacter($sQuoteChar) {
+        $this->sQuoteChar = $sQuoteChar;
+    }
+
+    /**
+     * Change the character used to escape other characters in a variable value
+     * WARNING: Change this at your own risk. Setting unusual values here may break parsing.
+     * @param string sEscapeChar The character to indicate an excaped character follows
+     */
+    public function overrideEscapeCharacter($sEscapeChar) {
+        $this->sEscapeChar = $sEscapeChar;
+    }
+
+    /**
+     * Change the regular expression patterned used to verify valid scope names.
+     * WARNING: Change this at your own risk. Setting unusual values here may break parsing.
+     * @param string sScopeCharSet A regexp patterns to indicate allowed characters in a scope name
+     */
+    public function overrideScopeCharacters($sScopeCharSet) {
+        $this->sScopeCharSet = $sScopeCharSet;
+    }
+
+    /**
+     * Change the regular expression patterned used to verify valid variable names.
+     * WARNING: Change this at your own risk. Setting unusual values here may break parsing.
+     * @param string sScopeCharSet A regexp patterns to indicate allowed characters in a variable name
+     */
+    public function overrideVariableNameCharacters($sVarNameCharSet) {
+        $this->sVarNameCharSet = $sVarNameCharSet;
     }
 
     /**
@@ -273,7 +344,7 @@ class ConfigFile {
      * @return boolean Returns true if well formed and valid, false otherwise
      */
     private function isValidScopeDefinition($sLine) {
-        $sValidCharSet = "a-zA-Z0-9_\-";
+        $sValidCharSet = $this->sScopeCharSet;
         $sScopeChar = preg_quote($this->sScopeDelimiter, "/");
         $sEscCommentStarts = "";
         foreach ($this->aLineCommentStart as $sCommentStart) {
@@ -298,7 +369,7 @@ class ConfigFile {
      * @param string $sLine The line to get the scope from
      */
     private function setScope($sLine) {
-        $sValidCharSet = "a-zA-Z0-9_\-";
+        $sValidCharSet = $this->sScopeCharSet;
         $sScopeChar = preg_quote($this->sScopeDelimiter, "/");
         $sEscCommentStarts = "";
         foreach ($this->aLineCommentStart as $sCommentStart) {
@@ -503,7 +574,7 @@ class ConfigFile {
      * @return boolean Returns true if variable name exists and is valid, false otherwise
      */
     private function hasValidVariableName($sLine, $iLineForError=null) {
-        $sValidCharSet = "a-zA-Z0-9_\-";
+        $sValidCharSet = $this->sVarNameCharSet;
         $sScopeChar = preg_quote($this->sScopeDelimiter, "/");
         $sVarNamePattern = "/^\s*(?:[{$sValidCharSet}]+(?:{$sScopeChar}[{$sValidCharSet}]+)*)\s*$/";
         $sVarNameCheck = $this->getPreDelimiter($sLine);
