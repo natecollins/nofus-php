@@ -559,9 +559,10 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
      *     $aResults2 = $db->query($pPrepared,$aValues2);
      *
      * @param string $sQuery String query with ? placeholders for linearly inserted values, or :name placeholders for associative values
+     * @param int $iReconnectAttempts If server has gone away, will attempt this many reconnects before failing
      * @return array(PDOStatement,bool,bool)|false The statement for the prepared query. If a SQL error occurs, a E_USER_WARNING is triggered and false is returned.
      */
-    public function prepare( $sQuery ) {
+    public function prepare($sQuery, $iReconnectAttempts=1) {
         $oStatement = false;
 
         # query type
@@ -574,8 +575,20 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
             return false;
         }
 
-        # prepare query
-        $oStatement = $this->cInstance->prepare($sQuery);
+        # catch timed out connections and attempt to reconnect
+        try {
+            # prepare query
+            $oStatement = $this->cInstance->prepare($sQuery);
+        }
+        catch (PDOException $e) {
+            $sExceptMsg = $e->getMessage();
+            if ($iReconnectAttempts > 0 && strpos($sExceptMsg, 'has gone away') !== false) {
+                $this->close();
+                return $this->prepare($sQuery, $iReconnectAttempts - 1);
+            }
+            trigger_error("DBConnect Error: Lost connection to SQL server and could not re-connect.", E_USER_WARNING);
+            return false;
+        }
         if ($oStatement == false) {
             trigger_error("DBConnect Error: SQL could not prepare query. Query is not valid or references something non-existant: {$sQuery}", E_USER_WARNING);
             return false;
