@@ -135,11 +135,11 @@ class DBConnect {
          if ($this->connectionExists()) {
             if ($silent == false) {
                  /* Throw exceptions on SQL error */
-                $cInst->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+                $this->cInstance->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             }
             else {
                 /* No exceptions thrown */
-                $cInst->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_SILENT);
+                $this->cInstance->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_SILENT);
             }
         }
     }
@@ -241,9 +241,9 @@ class DBConnect {
                                 )
                             );
                     // enable true prepared statements (instead of emulation, which forces all values to be strings)
-                    $cInst->setAttribute( PDO::ATTR_EMULATE_PREPARES, false );
-                    // enable errors
-                    $this->silentErrors(false);
+                    $cInst->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
+                    // default to throwing exceptions for PDO errors
+                    $cInst->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
                 }
                 /* Shut down all the execptions while on the connection level! */
                 catch (Exception $e) {
