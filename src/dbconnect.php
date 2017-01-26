@@ -582,12 +582,16 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
         }
         catch (PDOException $e) {
             $sExceptMsg = $e->getMessage();
-            if ($iReconnectAttempts > 0 && strpos($sExceptMsg, 'has gone away') !== false) {
-                $this->close();
-                return $this->prepare($sQuery, $iReconnectAttempts - 1);
+            if (strpos($sExceptMsg, 'has gone away') !== false) {
+                if ($iReconnectAttempts > 0) {
+                    $this->close();
+                    return $this->prepare($sQuery, $iReconnectAttempts - 1);
+                }
+                else {
+                    trigger_error("DBConnect Error: Lost connection to SQL server and could not re-connect.", E_USER_WARNING);
+                    return false;
+                }
             }
-            trigger_error("DBConnect Error: Lost connection to SQL server and could not re-connect.", E_USER_WARNING);
-            return false;
         }
         if ($oStatement == false) {
             trigger_error("DBConnect Error: SQL could not prepare query. Query is not valid or references something non-existant: {$sQuery}", E_USER_WARNING);
