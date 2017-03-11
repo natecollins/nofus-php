@@ -144,13 +144,118 @@ $cf->load();
 
 userdata.php
 -----------------------
-A class to access and validate user data types
-  - TODO = Work in progress
+A class to access and validate user data types from GET, POST, COOKIE, and FILES.
+  - Object based interface
+  - Support for retrieving arrays of values, including file data
+  - Functions auto-convert to basic data types
+  - Simple filter options for range, length, regexp, or pre-set values
+  - Default value option for all value retrieval functions
 
-Examples:  
+**Creating UserData Objects**  
+When creating a new UserData object, you must specify the name of the data field to retrieve, and
+optionally name where to look for the data at. If not specified, UserData will look for the
+value field in-order from these locations: GET, POST, COOKIE, and FILES.  
 ```
-TODO
+# Create UserData objects 
+$ud_userid = new UserData("user_id");
+$ud_message = new UserData("message", "POST");
+
+# Alternate way of creating UserData objects
+$ud_attachments = UserData::create("attach", "FILES");
+$ud_session = UserData::create("sess_key", "COOKIE");
 ```
+
+**Getting Simple Values**  
+```
+# Get string values
+$firstname = $ud_firstname->getStr();
+$lastname = $ud_lastname->getString();
+
+# Get integer values (truncates fractions)
+$age = $ud_age->getInt();
+$zip = $ud_zipcode->getInteger();
+
+# Get float values
+$temperature = $ud_temp->getFloat();
+$distance = $ud_dist->getDouble();
+
+# Get boolean values (true values are either: 1, true)
+$allow_email = $ud_email->getBool();
+$allow_text = $ud_text->getBoolean();
+```
+
+**Setting Default Values**  
+If no value was found, use the default value passed instead. With
+out a default value specified, the default is null.  
+```
+$msg_type = $ud_type->getStr("public");
+$guest = $ud_guest->getBoolean("1");
+```
+
+**Filter by Allowed Values**  
+If you know the value retrived must be from a set of values, you can
+set a filter to reject all but those values. Any non-allowed values
+will return the default value instead.  
+```
+$ud_acct->filterAllowed( ['guest','normal','admin'] );
+$acct_type = $ud_acct->getStr("guest");
+```
+
+**Filter by Range**  
+Only applicable when getting integer or float values. Values outside
+the range will return the default value, unless set to limit the value.  
+```
+$ud_age->filterRange(0,120);
+$age = $ud_age->getInteger();
+
+# Only limit the minimum 
+$ud_minimum->filterRange(15.0);
+
+# Only limit the maximum range
+$ud_maximum->filterRange(null, 99.5);
+
+# Limit the value to be within the filter range
+$ud_limit->filterRange(0, 100, true);
+```
+
+**Filter by Length**  
+Only applicable for string values. Values not within length limits
+will return the default value, unless set to truncate.  
+```
+# Filter minimum and maximum length
+$ud_username->filterLength(2, 10);
+
+# Filter minimum length only
+$ud_username->filterLength(2);
+
+# Filter minimum length and truncate string past maximum length
+$ud_username->filterLength(2, 10, true);
+```
+
+**Filter by Regular Expression**  
+Only applicable for string values. Values not matching pattern
+will return the default value.  
+```
+$ud_date->filterRegExp('/^\d{4}-\d\d-\d\d$/');
+```
+
+**Get Errors**  
+If your value is out of bounds of a filter, it will genereate an error
+message. All error messages are stored in an array. Using `getErrors()`
+you can retrieve and view those filter errors.  
+``` 
+$errors = $ud_data->getErrors();
+foreach ($errors as $err) {
+    echo "$err";
+}
+```
+
+**Get Array Values**  
+TODO  
+
+**Get File Values**  
+TODO  
+
 
 logger.php
 -----------------------

@@ -100,6 +100,7 @@ class UserData {
     private $sRegExp;
     private $mRangeLow;
     private $mRangeHigh;
+    private $bRangeLimit;
     private $iLengthMin;
     private $iLengthMax;
     private $bTruncateLength;
@@ -121,6 +122,7 @@ class UserData {
         $this->sRegExp = null;
         $this->mRangeLow = null;
         $this->mRangeHigh = null;
+        $this->bRangeLimit = false;
         $this->iLengthMin = null;
         $this->iLengthMax = null;
         $this->bTruncateLength = false;
@@ -146,6 +148,13 @@ class UserData {
      */
     static public function create($sFieldName, $sMethod="ANY") {
         return new UserData($sFieldName, $sMethod);
+    }
+
+    /**
+     *
+     */ 
+    public function getErrors() {
+        return $this->aErrors;
     }
 
     /**
@@ -199,7 +208,7 @@ class UserData {
             $iVal = intval($sRaw);
         }
 
-        $iVal = $this->applyRange($iVal);
+        $iVal = $this->applyRange($iVal, $mDefault);
         if (!$this->isAllowed($iVal)) {
             $iVal = $mDefault;
         }
@@ -221,7 +230,7 @@ class UserData {
             $fVal = floatval($sRaw);
         }
 
-        $fVal = $this->applyRange($fVal);
+        $fVal = $this->applyRange($fVal, $mDefault);
         if (!$this->isAllowed($fVal)) {
             $fVal = $mDefault;
         }
@@ -308,7 +317,7 @@ class UserData {
                     $iVal = intval($sValue);
                 }
 
-                $iVal = $this->applyRange($iVal);
+                $iVal = $this->applyRange($iVal, $mDefault);
                 if (!$this->isAllowed($iVal)) {
                     $iVal = $mDefault;
                 }
@@ -327,6 +336,22 @@ class UserData {
      */
     public function getIntegerArray($mDefault=null) {
         return $this->getIntArray($mDefault);
+    }
+
+    /**
+     * Get an array of float values
+     * @param mixed mDefault The default value to assign to each value that doesn't match all filters
+     * @return array
+     */
+    public function getFloatArray($mDefault=null) {
+        # TODO
+    }
+
+    /**
+     * Alias to getFloatArray function
+     */
+    public function getDoubleArray($mDefault=null) {
+        return $this->getFloatArray($mDefault);
     }
 
     /**
@@ -384,27 +409,44 @@ class UserData {
      * To NOT filter one of the numbers (minimum or maximum), set it to null
      * @param mixed mLow The minimum allowed value; integer, float, or null
      * @param mixed mHigh The maximum allowed value; integer, float, or null
+     * @param bool bLimit If set to true and the value is of an valid type,
+     *          this will restrict values to be within the range rather than
+     *          cause a 'default' return value.
      */
-    public function filterRange($mLow, $mHigh) {
+    public function filterRange($mLow, $mHigh, $bLimit=false) {
         $this->mRangeLow = $mLow;
         $this->mRangeHigh = $mHigh;
+        $this->bRangeLimit = $bLimit;
     }
 
-    private function applyRange($mValue) {
+    private function applyRange($mValue, $mDefault) {
+        $bValidType = false;
         if (is_int($mValue)) {
-            if ($this->mRangeLow !== null) {
-                $mValue = max($mValue,intval($this->mRangeLow));
-            }
-            if ($this->mRangeHigh !== null) {
-                $mValue = min($mValue,intval($this->mRangeHigh));
-            }
+            $mLow = intval($this->mRangeLow);
+            $mHigh = intval($this->mRangeHigh);
+            $bValidType = true;
         }
         if (is_float($mValue)) {
+            $mLow = floatval($this->mRangeLow);
+            $mHigh = floatval($this->mRangeHigh);
+            $bValidType = true;
+        }
+        if ($bValidType == true) {
             if ($this->mRangeLow !== null) {
-                $mValue = max($mValue,floatval($this->mRangeLow));
+                if ($this->bRangeLimit != true && $mValue < $mLow) {
+                    $mValue = $mDefault;
+                }
+                else {
+                    $mValue = max($mValue, $mLow);
+                }
             }
             if ($this->mRangeHigh !== null) {
-                $mValue = min($mValue,floatval($this->mRangeHigh));
+                if ($this->bRangeLimit != true && $mValue > $mHigh) {
+                    $mValue = $mDefault;
+                }
+                else {
+                    $mValue = min($mValue, $mHigh);
+                }
             }
         }
         return $mValue;
