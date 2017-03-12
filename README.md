@@ -5,9 +5,9 @@ Web-utilities is a set of simple-to-use tools designed to deal with some of the 
 when web programming from scratch with PHP. Each class can be used independently of the rest.  
 
 * [configfile.php](#configfilephp) - Easy parser for config files
-* [userdata.php](#userdataphp) - Simple validator for user data
 * [logger.php](#loggerphp) - Simple logger class with built-in file logging implementation
 * [dbconnect.php](#dbconnectphp) - Quick, safe interface for making MySQL/MariaDB queries
+* [userdata.php](#userdataphp) - Simple validator for user data
 
 
 configfile.php
@@ -142,121 +142,6 @@ $cf->load();
 ```
 
 
-userdata.php
------------------------
-A class to access and validate user data types from GET, POST, COOKIE, and FILES.
-  - Object based interface
-  - Support for retrieving arrays of values, including file data
-  - Functions auto-convert to basic data types
-  - Simple filter options for range, length, regexp, or pre-set values
-  - Default value option for all value retrieval functions
-
-**Creating UserData Objects**  
-When creating a new UserData object, you must specify the name of the data field to retrieve, and
-optionally name where to look for the data at. If not specified, UserData will look for the
-value field in-order from these locations: GET, POST, COOKIE, and FILES.  
-```
-# Create UserData objects 
-$ud_userid = new UserData("user_id");
-$ud_message = new UserData("message", "POST");
-
-# Alternate way of creating UserData objects
-$ud_attachments = UserData::create("attach", "FILES");
-$ud_session = UserData::create("sess_key", "COOKIE");
-```
-
-**Getting Simple Values**  
-```
-# Get string values
-$firstname = $ud_firstname->getStr();
-$lastname = $ud_lastname->getString();
-
-# Get integer values (truncates fractions)
-$age = $ud_age->getInt();
-$zip = $ud_zipcode->getInteger();
-
-# Get float values
-$temperature = $ud_temp->getFloat();
-$distance = $ud_dist->getDouble();
-
-# Get boolean values (true values are either: 1, true)
-$allow_email = $ud_email->getBool();
-$allow_text = $ud_text->getBoolean();
-```
-
-**Setting Default Values**  
-If no value was found, use the default value passed instead. With
-out a default value specified, the default is null.  
-```
-$msg_type = $ud_type->getStr("public");
-$guest = $ud_guest->getBoolean("1");
-```
-
-**Filter by Allowed Values**  
-If you know the value retrived must be from a set of values, you can
-set a filter to reject all but those values. Any non-allowed values
-will return the default value instead.  
-```
-$ud_acct->filterAllowed( ['guest','normal','admin'] );
-$acct_type = $ud_acct->getStr("guest");
-```
-
-**Filter by Range**  
-Only applicable when getting integer or float values. Values outside
-the range will return the default value, unless set to limit the value.  
-```
-$ud_age->filterRange(0,120);
-$age = $ud_age->getInteger();
-
-# Only limit the minimum 
-$ud_minimum->filterRange(15.0);
-
-# Only limit the maximum range
-$ud_maximum->filterRange(null, 99.5);
-
-# Limit the value to be within the filter range
-$ud_limit->filterRange(0, 100, true);
-```
-
-**Filter by Length**  
-Only applicable for string values. Values not within length limits
-will return the default value, unless set to truncate.  
-```
-# Filter minimum and maximum length
-$ud_username->filterLength(2, 10);
-
-# Filter minimum length only
-$ud_username->filterLength(2);
-
-# Filter minimum length and truncate string past maximum length
-$ud_username->filterLength(2, 10, true);
-```
-
-**Filter by Regular Expression**  
-Only applicable for string values. Values not matching pattern
-will return the default value.  
-```
-$ud_date->filterRegExp('/^\d{4}-\d\d-\d\d$/');
-```
-
-**Get Errors**  
-If your value is out of bounds of a filter, it will genereate an error
-message. All error messages are stored in an array. Using `getErrors()`
-you can retrieve and view those filter errors.  
-``` 
-$errors = $ud_data->getErrors();
-foreach ($errors as $err) {
-    echo "$err";
-}
-```
-
-**Get Array Values**  
-TODO  
-
-**Get File Values**  
-TODO  
-
-
 logger.php
 -----------------------
 A class to create logs, with a built-in simple file-logging implementation
@@ -275,7 +160,7 @@ Logger::initialize('/path/to/file.log', Logger::LOG_ERROR | Logger::LOG_CRITICAL
 # Disable logger
 Logger::disable();
 
-# Register custom logger instance which implements LoggingInterface
+# Register custom logger instance which must implement `LoggingInterface`.
 Logger::register( new CustomLogger() );
 
 # Make log entries
@@ -285,6 +170,7 @@ Logger::warning("Warning!");
 Logger::error("Error!");
 Logger::critical("Critical!");
 ```
+
 
 dbconnect.php
 -----------------------
@@ -588,4 +474,148 @@ a DBConnect object, you can use the `getQueryCount()` method.
 ```php
 $count = $db->getQueryCount();
 ```
+
+
+userdata.php
+-----------------------
+A class to access and validate user data types from GET, POST, COOKIE, and FILES.
+  - Object based interface
+  - Support for retrieving arrays of values, including file data
+  - Functions auto-convert to basic data types
+  - Simple filter options for range, length, regexp, or pre-set values
+  - Default value option for all value retrieval functions
+
+**Creating UserData Objects**  
+When creating a new UserData object, you must specify the name of the data field to retrieve, and
+optionally name where to look for the data at. If not specified, UserData will look for the
+value field in-order from these locations: GET, POST, COOKIE, and FILES.  
+```
+# Create UserData objects 
+$ud_userid = new UserData("user_id");
+$ud_message = new UserData("message", "POST");
+
+# Alternate way of creating UserData objects
+$ud_attachments = UserData::create("attach", "FILES");
+$ud_session = UserData::create("sess_key", "COOKIE");
+```
+
+**Getting Simple Values**  
+Getting simple values is easy, and returns the appropriate value type,
+or returns null if variable name was not passed.  
+```
+# Get string values
+$firstname = $ud_firstname->getStr();
+$lastname = $ud_lastname->getString();
+
+# Get integer values (truncates decimals)
+$age = $ud_age->getInt();
+$zip = $ud_zipcode->getInteger();
+
+# Get float values
+$temperature = $ud_temp->getFloat();
+$distance = $ud_dist->getDouble();
+
+# Get boolean values (true values are either: 1, true)
+$allow_email = $ud_email->getBool();
+$allow_text = $ud_text->getBoolean();
+```
+
+**Setting Default Values**  
+If no value was found, use the default value passed instead. With
+out a default value specified, the default is null.  
+```
+$msg_type = $ud_type->getStr("public");
+$guest = $ud_guest->getBoolean("1");
+```
+
+**Filter by Allowed Values**  
+If you know the value retrived must be from a set of values, you can
+set a filter to reject all but those values. Any non-allowed values
+will return the default value instead.  
+```
+$ud_acct->filterAllowed( ['guest','normal','admin'] );
+$acct_type = $ud_acct->getStr("guest");
+```
+
+**Filter by Range**  
+Only applicable when getting integer or float values. Values outside
+the range will return the default value, unless set to limit the value.  
+```
+$ud_age->filterRange(0,120);
+$age = $ud_age->getInteger();
+
+# Only limit the minimum 
+$ud_minimum->filterRange(15.0);
+
+# Only limit the maximum range
+$ud_maximum->filterRange(null, 99.5);
+
+# Limit the value to be within the filter range
+$ud_limit->filterRange(0, 100, true);
+```
+
+**Filter by Length**  
+Only applicable for string values. Values not within length limits
+will return the default value, unless set to truncate.  
+```
+# Filter minimum and maximum length
+$ud_username->filterLength(2, 10);
+
+# Filter minimum length only
+$ud_username->filterLength(2);
+
+# Filter minimum length and truncate string past maximum length
+$ud_username->filterLength(2, 10, true);
+```
+
+**Filter by Regular Expression**  
+Only applicable for string values. Values not matching pattern
+will return the default value.  
+```
+$ud_date->filterRegExp('/^\d{4}-\d\d-\d\d$/');
+```
+
+**Get Errors**  
+If your value is out of bounds of a filter, it will genereate an error
+message. All error messages are stored in an array. Using `getErrors()`
+you can retrieve and view those filter errors.  
+``` 
+$errors = $ud_data->getErrors();
+foreach ($errors as $err) {
+    echo "$err";
+}
+```
+
+**Get File Values**  
+Get information about an uploaded file. Returns array containing:  
+ - `name` The original name of the uploaded file
+ - `type` The mime type of the file (can be falsified by client)
+ - `size` The size of the uploaded file
+ - `tmp_name` The file location and name as it exists on the server
+ - `error` An error code if there was a problem with the upload (0 means no error)
+```
+$file_info = $ud_attachment->getFile();
+```
+
+**Get Array Values**  
+When using PHP form variable arrays, you can use the array version of
+the UserData functions. Any filters you've applied will apply to each
+value of the array.  
+```
+$string_array = $ud_list->getStrArray();
+# Can still provide default value to return
+$string_array = $ud_list->getStringArray( array() );
+
+$int_array = $ud_numbers->getIntArray();
+$int_array = $ud_numbers->getIntegerArray();
+
+$float_array = $ud_numbers->getFloatArray();
+$float_array = $ud_numbers->getDoubleArray();
+
+$bool_array = $ud_switches->getBoolArray();
+$bool_array = $ud_switches->getBooleanArray();
+
+$file_array = $ud_files->getFileArray();
+```
+
 

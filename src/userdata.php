@@ -344,7 +344,27 @@ class UserData {
      * @return array
      */
     public function getFloatArray($mDefault=null) {
-        # TODO
+        $aValues = $this->getValue();
+        $aReturn = array();
+        if (is_array($aValues)) {
+            foreach ($aValues as $sValue) {
+                $iVal = null;
+                if (is_numeric($sValue)) {
+                    $fVal = floatval($sValue);
+                }
+
+                $fVal = $this->applyRange($fVal, $mDefault);
+                if (!$this->isAllowed($fVal)) {
+                    $fVal = $mDefault;
+                }
+
+                if ($fVal === null) {
+                    $fVal = $mDefault;
+                }
+                $aReturn[] = $fVal;
+            }
+        }
+        return $aReturn;
     }
 
     /**
@@ -352,6 +372,40 @@ class UserData {
      */
     public function getDoubleArray($mDefault=null) {
         return $this->getFloatArray($mDefault);
+    }
+
+    /**
+     * Get an array of boolean values
+     * @param mixed mDefault The default value to assign to each value that doesn't match all filters
+     * @return array
+     */
+    public function getBoolArray($mDefault=null) {
+        $aValues = $this->getValue();
+        $aReturn = array();
+        if (is_array($aValues)) {
+            foreach ($aValues as $sValue) {
+                $bVal = null;
+                if ($sValue !== null) {
+                    $bVal = false;
+                    if (in_array(strtolower($sValue), array('1','true'))) {
+                        $bVal = true;
+                    }
+                }
+
+                if ($bVal === null) {
+                    $bVal = $mDefault;
+                }
+                $aReturn[] = $bVal;
+            }
+        }
+        return $aReturn;
+    }
+
+    /**
+     * Alias to getBoolArray function
+     */
+    public function getBooleanArray($mDefault=null) {
+        return $this->getBoolArray($mDefault);
     }
 
     /**
