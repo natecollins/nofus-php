@@ -237,7 +237,7 @@ class DBConnect {
                                 $aServer['username'], $aServer['password'],
                                 array(
                                     PDO::ATTR_PERSISTENT=>$this->bPersistent,
-                                    PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8"
+                                    PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4"
                                 )
                             );
                     // enable true prepared statements (instead of emulation, which forces all values to be strings)
