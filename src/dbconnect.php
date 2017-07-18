@@ -77,6 +77,7 @@ class DBConnect {
     private $bPersistent;      // whether to establish a persistent connection to the database
     private $cInstance;        // the instance of the PDO connection
     private $cStatement;       // the current statement (needed for queryLoop()/queryNext())
+    private $bDebug;           // Enabled detailed debug info display
 
     /**
      * Constructor requires valid MySQL connection server(s) in an array.
@@ -97,7 +98,7 @@ class DBConnect {
      *           )
      *     );
      *
-     * @param array $conn_info An array containing a list of servers' connection information
+     * @param array conn_info An array containing a list of servers' connection information
      */
     function __construct($conn_info, $bLoadBalance=false) {
         $this->aServers = array();
@@ -108,6 +109,7 @@ class DBConnect {
         $this->bPersistent = false;
         $this->cInstance = null;
         $this->cStatement = null;
+        $this->bDebug = false;
 
         # psudeo verify connection info (vars exist, not empty)
         if (is_array($conn_info)) {
@@ -127,9 +129,17 @@ class DBConnect {
      }
 
      /**
+      * Set (or unset) the query log and whether or not additional debugging info will be displayed on errors.
+      * @param bool bDebug Will enable debug info if true (default), or disable on false
+      */
+     public function enableDebugInfo($bDebug=true) {
+        $this->bDebug = $bDebug;
+     }
+
+     /**
       * Set whether or not errors should throw exceptions when a MySQL error occurs
       *
-      * @param boolean $silent Do not show exceptions if set to true; does throw exceptions if set to false
+      * @param boolean silent Do not show exceptions if set to true; does throw exceptions if set to false
       */
      public function silentErrors($silent=true) {
          if ($this->connectionExists()) {
@@ -157,19 +167,11 @@ class DBConnect {
     }
 
     /**
-     * DEPRECATED (will be removed in version 1.0)
-     * Alias for escapeIdentifier()
-     */
-    public function quoteColumn($value) {
-        return $this->escapeIdentifier($value);
-    }
-
-    /**
      * Escape identifiers for use in a query.
      * Note: Only works on table name and column names for the currently connected database.
      *
-     * @param string $sName The potentially dangerous identifier
-     * @param boolean $bBacktick If true (the default) resulting successes are surrounded by backticks (`), otherwise results are just the identifier.
+     * @param string sName The potentially dangerous identifier
+     * @param boolean bBacktick If true (the default) resulting successes are surrounded by backticks (`), otherwise results are just the identifier.
      * @return string The safe identifier surrounded by backticks (`) if requested; if identifer is invalid, returns an empty string ('')
      */
     public function escapeIdentifier($sName, $bBacktick=true) {
@@ -198,7 +200,7 @@ class DBConnect {
     /**
      * Set connection peristance; if persistance is changed, then recreate the database connection
      *
-     * @param boolean $bPersistent If true, the connnection will be persistent; otherwise it will not be
+     * @param boolean bPersistent If true, the connnection will be persistent; otherwise it will not be
      */
     public function setPersistentConnection($bPersistent=false) {
         if ($this->bPersistent != $bPersistent) {
@@ -219,7 +221,7 @@ class DBConnect {
     /**
      * Create a PDO connection to a MySQL server
      *
-     * @param boolean $bReinitialize If set to true, then any curent connection is terminated and a new one is created
+     * @param boolean bReinitialize If set to true, then any curent connection is terminated and a new one is created
      * @return boolean If there is a valid connection or one was created, return true; false otherwise.
      */
     private function create($bReinitialize=false) {
@@ -272,17 +274,17 @@ class DBConnect {
     /**
      * Get host name of connected server
      *
-     * @return string The domain name or IP of the last connection
+     * @return string The domain name or IP of the last connection, or empty string if not connected
      */
     public function getHost() {
-        if ($this->iServerIndex === null) return 'No Connection';
+        if ($this->iServerIndex === null) return '';
         return $this->aServers[$this->iServerIndex]['host'];
     }
 
     /**
      * Get the name of the database being used on the connected server
      *
-     * @return string The name of the datbase currently connected to, or empty string ('') if not connected
+     * @return string The name of the datbase currently connected to, or empty string if not connected
      */
     public function getDatabaseName() {
         if (!$this->create()) return '';
@@ -293,23 +295,16 @@ class DBConnect {
     /**
      * Emulate safe-quoting variables to make them safe (actual query uses prepared statements)
      *
-     * @param mixed $xValue A value to escape
+     * @param mixed xValue A value to escape
      * @return mixed The value escaped by the connection instance
      */
-
-    public function quoteSmart($xValue) {
+    public function quoteFake($xValue) {
         # create connection if one doesn't exist
         if ( !$this->create() ) return null;
 
         # if inserting NULL, then it might as well be NULL
         if (is_null($xValue)) {
             return 'NULL';
-        }
-
-        # magic quotes must die
-        if (function_exists('get_magic_quotes_gpc') && get_magic_quotes_gpc()) {
-            trigger_error('Magic quotes has been DEPRECATED and should not be used; please contact your administrator for further help.');
-            exit(1);
         }
 
         # quote if not a number
@@ -323,7 +318,7 @@ class DBConnect {
     /**
      * Get a string representing the query and values for a given SQL statement
      *
-     * @param object $cStatement The PDO statement
+     * @param object cStatement The PDO statement
      * @return string The dump of query and params, captured into a string
      */
     public function statementReturn($cStatement) {
@@ -337,9 +332,9 @@ class DBConnect {
     /**
      * Replace a '?' with comma delimited '?'s at the nth occurance of '?'
      *
-     * @param string $sQuery The string that contains '?' for value placeholders
-     * @param int $iNth The nth occurance of '?' in the query (First occurance = 1, second = 2, etc)
-     * @param int $iCount The number of comma delimted '?' to replace the existing placeholder with
+     * @param string sQuery The string that contains '?' for value placeholders
+     * @param int iNth The nth occurance of '?' in the query (First occurance = 1, second = 2, etc)
+     * @param int iCount The number of comma delimted '?' to replace the existing placeholder with
      * @return The new query
      */
     private function expandValueLocation($sQuery,$iNth,$iCount) {
@@ -363,8 +358,8 @@ class DBConnect {
      * Replace all anonymous placeholders in query that has an array as a value with multiple
      * placeholders, also replaceing the array with multiple separate values.
      *
-     * @param string $sQuery The query string with placeholders that may be expanded
-     * @param array $aValues An array of values; values that are non-empty arrays will be expanded
+     * @param string sQuery The query string with placeholders that may be expanded
+     * @param array aValues An array of values; values that are non-empty arrays will be expanded
      */
     private function expandQueryPlaceholders(&$sQuery,&$aValues) {
         $aExpandedValues = array();
@@ -373,8 +368,7 @@ class DBConnect {
             if (is_array($value)) {
                 // We can't have an empty array
                 if (count($value) == 0) {
-                    trigger_error("DBConnect Error: Cannot process value of empty array.", E_USER_WARNING);
-                    break;
+                    $this->triggerError("Error: Cannot pass empty array to value placeholder #{$iPlaceholderLoc} ({$key}) in query: {$sQuery}");
                 }
                 $sQuery = $this->expandValueLocation($sQuery,$iPlaceholderLoc+1,count($value));
                 // Adding more placeholders shifts the current placeholder location
@@ -397,19 +391,21 @@ class DBConnect {
     }
 
     /**
-     * Record the last query statement attempted
+     * Record the last query statement attempted into the query log
      *
-     * @param object $cStatement The statement to record the query from
+     * @param object cStatement The statement to record the query from
      */
     private function recordQuery($cStatement) {
         static $exceed_msg = "LAST QUERY LOG DISABLED : Exceeded 64 MB limit.";
-        if ($this->sLastQuery == $exceed_msg || strlen($this->sLastQuery) > 67108864) {
-            $this->sLastQuery = $exceed_msg;
-        }
-        else {
-            $sQuery = $this->statementReturn($cStatement);
-            if ($this->bTransaction == true) $this->sLastQuery .= "\n\n$sQuery";
-            else $this->sLastQuery = $sQuery;
+        if ($this->bDebug) {
+            if ($this->sLastQuery == $exceed_msg || strlen($this->sLastQuery) > 67108864) {
+                $this->sLastQuery = $exceed_msg;
+            }
+            else {
+                $sQuery = $this->statementReturn($cStatement);
+                if ($this->bTransaction == true) { $this->sLastQuery .= "\n\n$sQuery"; }
+                else { $this->sLastQuery = $sQuery; }
+            }
         }
     }
 
@@ -433,14 +429,15 @@ class DBConnect {
      *     $sQuery = "SELECT name,age FROM users WHERE hair_color = ?";
      *     $aValues = "brown";
      *
-     * @param string|array(PDOStatement,bool,bool) $mQuery String query with ? placeholders for linearly inserted values, or :name placeholders for associative values; or already prepared statement
-     * @param array|mixed $aValues Array of values to be escaped and inserted into the query
-     * @param int $iFetchStyle The PDO fetch style to query using
-     * @param mixed $vFetchArg Additional argument to pass if the fetch style requires it
-     * @param boolean $bFetchAll If true, all rows from a SELECT will be returned; if false, no rows will be returned (see queryNext())
+     * @param string|array(PDOStatement,bool,bool) mQuery String query with ? placeholders for linearly inserted values, or :name placeholders for associative values; or already prepared statement
+     * @param array|mixed aValues Array of values to be escaped and inserted into the query
+     * @param int iFetchStyle The PDO fetch style to query using
+     * @param mixed vFetchArg Additional argument to pass if the fetch style requires it
+     * @param boolean bFetchAll If true, all rows from a SELECT will be returned; if false, no rows will be returned (see queryNext())
+     * @param boolean bRecordQuery If false, will not place query into query log (hides extra query calls internal to DBConnect)
      * @return array|int|null|false An array of rows for SELECT; primary key for INSERT (NULL is none returned); number of rows affected for UPDATE/DELETE/REPLACE. If a SQL error occurs, a E_USER_WARNING is triggered and false is returned.
      */
-    public function query( $mQuery, $aValues=array(), $iFetchStyle=PDO::FETCH_ASSOC, $vFetchArg=null, $bFetchAll=true ) {
+    public function query($mQuery, $aValues=array(), $iFetchStyle=PDO::FETCH_ASSOC, $vFetchArg=null, $bFetchAll=true, $bRecordQuery=true) {
         $this->iQueryCount += 1;
 
         // If value was passed directly (for single value queries), place it into an array
@@ -471,8 +468,7 @@ class DBConnect {
             $bIsUpdateDelete = $mQuery[2];
         }
         else {
-            trigger_error("DBConnect Error: Method query() does not have a valid prepared statement to execute against.", E_USER_WARNING);
-            return false;
+            $this->triggerError("Error: Method query() does not have a valid prepared statement to execute against.");
         }
 
         # run query
@@ -493,26 +489,12 @@ class DBConnect {
         }
         catch (PDOException $e) {
             $this->rollbackTransaction();
-            $aError = $this->cStatement->errorInfo();
-?>
-============================================================
-MySQL Error Details
-Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
-
-<?php
-            echo PHP_EOL;
-            echo $this->statementReturn($this->cStatement);
-            echo PHP_EOL;
-?>
-
-============================================================
-<?php
             $this->recordQuery($this->cStatement);
-
-            trigger_error("DBConnect Error: Query Failed ({$aError[1]}): {$aError[2]}", E_USER_WARNING);
-            return false;
+            $this->triggerErrorDump("Error: Query execute failed.");
         }
-        $this->recordQuery($this->cStatement);
+        if ($bRecordQuery) {
+            $this->recordQuery($this->cStatement);
+        }
 
         # pull AUTO_INCREMENT id if previous query was INSERT
         if ( $bIsInsert ) {
@@ -558,8 +540,8 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
      *     $aResults1 = $db->query($pPrepared,$aValues1);
      *     $aResults2 = $db->query($pPrepared,$aValues2);
      *
-     * @param string $sQuery String query with ? placeholders for linearly inserted values, or :name placeholders for associative values
-     * @param int $iReconnectAttempts If server has gone away, will attempt this many reconnects before failing
+     * @param string sQuery String query with ? placeholders for linearly inserted values, or :name placeholders for associative values
+     * @param int iReconnectAttempts If server has gone away, will attempt this many reconnects before failing
      * @return array(PDOStatement,bool,bool)|false The statement for the prepared query. If a SQL error occurs, a E_USER_WARNING is triggered and false is returned.
      */
     public function prepare($sQuery, $iReconnectAttempts=1) {
@@ -571,8 +553,7 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
 
         # create connection if one doesn't exist
         if ( !$this->create() ) {
-            trigger_error("DBConnect Error: Could not establish connection to server.", E_USER_WARNING);
-            return false;
+            $this->triggerError("Error: Could not establish connection to server.");
         }
 
         # catch timed out connections and attempt to reconnect
@@ -588,14 +569,12 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
                     return $this->prepare($sQuery, $iReconnectAttempts - 1);
                 }
                 else {
-                    trigger_error("DBConnect Error: Lost connection to SQL server and could not re-connect.", E_USER_WARNING);
-                    return false;
+                    $this->triggerError("Error: Lost connection to SQL server and could not re-connect.");
                 }
             }
         }
         if ($oStatement == false) {
-            trigger_error("DBConnect Error: SQL could not prepare query. Query is not valid or references something non-existant: {$sQuery}", E_USER_WARNING);
-            return false;
+            $this->triggerErrorDump("Error: SQL could not prepare query; it is not valid or references something non-existant.".PHP_EOL.PHP_EOL.$sQuery);
         }
 
         return array($oStatement,$bIsInsert,$bIsUpdateDelete);
@@ -613,8 +592,8 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
      *         echo "{$aRow['name']} lives at {$aRow['address']}" . PHP_EOL;
      *     }
      *
-     * @param string $sQuery String query with ? placeholders for linearly inserted values, or :name placeholders for associative values
-     * @param array $aValues Array of values to be escaped and inserted into the query
+     * @param string sQuery String query with ? placeholders for linearly inserted values, or :name placeholders for associative values
+     * @param array aValues Array of values to be escaped and inserted into the query
      */
     public function queryLoop($sQuery, $aValues=array()) {
         $this->query($sQuery, $aValues, PDO::FETCH_ASSOC, null, false);
@@ -631,22 +610,18 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
     }
 
     /**
-     * Returns only the first row from the query; when using default arguments, will throw an error if no rows were returned.
+     * Returns only the first row from the query, or null if no rows matched
      *
-     * @param string $sQuery The query to run
-     * @param array $aValues The values the query is to use
-     * @param boolean $bRequireRow If set to true (the default), queryRow() will throw an E_USER_ERROR if query didn't match at least one row.
-     * @param int $iFetchStyle The PDO fetch style to query using
-     * @return array|null The first row of the results of the query; if query found no rows, null may be returned.
+     * @param string sQuery The query to run
+     * @param array aValues The values the query is to use
+     * @param int iFetchStyle The PDO fetch style to query using
+     * @return array|null The first row of the results of the query; or null if no rows found
      */
-    public function queryRow($sQuery, $aValues=array(), $bRequireRow=true, $iFetchStyle=PDO::FETCH_ASSOC) {
+    public function queryRow($sQuery, $aValues=array(), $iFetchStyle=PDO::FETCH_ASSOC) {
         $aArray = $this->query($sQuery,$aValues,$iFetchStyle);
         $aRow = null;
         if ( is_array($aArray) && count($aArray) > 0 ) {
             $aRow = array_shift($aArray);
-        }
-        elseif ($bRequireRow) {
-            trigger_error("DBConnect Error: SQL query returned no rows when at least one row was required.", E_USER_ERROR);
         }
         return $aRow;
     }
@@ -654,11 +629,11 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
     /**
      * Return all the values for a column from a given query (defaults to first column)
      *
-     * @param string $sQuery The query to run
-     * @param array $aValues The values the query is to use
-     * @param int $iColumnNum What column to retrieve (0 based column index)
+     * @param string sQuery The query to run
+     * @param array aValues The values the query is to use
+     * @param int iColumnNum What column to retrieve (0 based column index)
      */
-    public function queryColumn( $sQuery, $aValues=array(), $iColumnNum=0 ) {
+    public function queryColumn($sQuery, $aValues=array(), $iColumnNum=0) {
         return $this->query($sQuery,$aValues,PDO::FETCH_COLUMN,$iColumnNum);
     }
 
@@ -669,18 +644,18 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
      *   perform. Support for using labeled values is limited and may not be accurate.
      * For assisting in debugging only.
      *
-     * @param string $sQuery The query to run
-     * @param array $aValues The values the query is to use
+     * @param string sQuery The query to run
+     * @param array aValues The values the query is to use
      * @return string The emulated query string with escaped values inserted
      */
-    public function queryReturn( $sQuery, $aValues=array(), $bSupressWarning=false) {
+    public function queryReturn($sQuery, $aValues=array(), $bSupressWarning=false) {
         $sReturn = "\n-- [WARNING] This only EMULATES what the prepared statement will run.\n\n";
         if ($bSupressWarning) $sReturn = "\n";
 
         # Replace labels
         foreach ($aValues as $mKey=>$mVal) {
             if (is_string($mKey) && strlen($mKey) > 1 && $mKey[0] == ':') {
-                $sEscapedVal = $this->quoteSmart($mVal);
+                $sEscapedVal = $this->quoteFake($mVal);
                 $sQuery = str_replace($mKey,$sEscapedVal,$sQuery);
                 unset($aValues[$mKey]);
             }
@@ -691,7 +666,7 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
 
         # Escape values
         foreach ($aValues as $mKey=>$mVal) {
-            $aValues[$mKey] = $this->quoteSmart($mVal);
+            $aValues[$mKey] = $this->quoteFake($mVal);
         }
 
         # Replace question marks with sprintf specifiers
@@ -711,11 +686,11 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
      *   perform. Support for using labeled values is limited and may not be accurate.
      * For assisting in debugging only.
      *
-     * @param string $sQuery The query to run
-     * @param array $aValues The values the query is to use
+     * @param string sQuery The query to run
+     * @param array aValues The values the query is to use
      * @return string The emulated query string with escaped values inserted
      */
-    public function queryDump( $sQuery, $aValues=array() ) {
+    public function queryDump($sQuery, $aValues=array()) {
         echo "<br /><pre>".$this->queryReturn($sQuery,$aValues)."</pre><br />";
         return null;
     }
@@ -723,8 +698,8 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
     /**
      * Return all possible enum values from a column in index order.
      *
-     * @param string $sTable The name of the table the column field is in
-     * @param string $sField The name of the column
+     * @param string sTable The name of the table the column field is in
+     * @param string sField The name of the column
      * @return array The enum values in index order
      */
     public function enumValues($sTable, $sField) {
@@ -733,7 +708,8 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
         $sSafeField = $this->escapeIdentifier($sField, false);
         $sQuery = "SHOW COLUMNS FROM {$sSafeTable} LIKE '{$sSafeField}'";
 
-        $aRow = $this->queryRow($sQuery, array(), true, PDO::FETCH_NUM);
+        $aRows = $this->query($sQuery,array(),PDO::FETCH_NUM,null,true,false);
+        $aRow = array_shift($aRows);
 
         preg_match_all('/\'(.*?)\'/', $aRow[1], $aMatchEnums);
         if(!empty($aMatchEnums[1])) {
@@ -752,7 +728,7 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
         static $aTables = array();
         /* Only run the query to get table names the first time; additional calls will just use the static variable */
         if (count($aTables) == 0) {
-            $aRows = $this->query("SHOW TABLES",array(),PDO::FETCH_NUM);
+            $aRows = $this->query("SHOW TABLES",array(),PDO::FETCH_NUM,null,true,false);
             foreach ($aRows as $aRow) {
                 $aTables[] = $aRow[0];
             }
@@ -786,7 +762,7 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
      *     is_nullable          = If the column is allowed to be NULL
      *     is_autokey           = If the column is an auto_increment field
      *
-     * @param string $sTable The table name to examine; if null, then pull from all tables in this database
+     * @param string sTable The table name to examine; if null, then pull from all tables in this database
      * @return array An array of all the columns with data regarding each, in index order
      */
     public function getTableColumns($sTable=null) {
@@ -804,7 +780,7 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
         $sQuery     .= "
                     ORDER BY ordinal_position ASC";
 
-        $aRows = $this->query($sQuery,$aValues);
+        $aRows = $this->query($sQuery,$aValues,PDO::FETCH_ASSOC,null,true,false);
 
         $aCols = array();
         foreach ($aRows as $aRow) {
@@ -820,7 +796,7 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
     /**
      * Start a transaction.
      *
-     * @param boolean|null $bReadCommitted If set to true, sets transaction isolation to "READ COMMITTED";
+     * @param boolean|null bReadCommitted If set to true, sets transaction isolation to "READ COMMITTED";
      *                                     if false, sets it to "REPEATABLE READ"; if left null, no transaction
      *                                     level is set (MySQL default is "REPEATABLE READ").
      */
@@ -830,10 +806,12 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
 
         if ($this->bTransaction == false) {
             if ($bReadCommitted === true) {
-                $this->query("SET TRANSACTION ISOLATION LEVEL READ COMMITTED");
+                $sQuery = "SET TRANSACTION ISOLATION LEVEL READ COMMITTED";
+                $this->query($sQuery,array(),PDO::FETCH_ASSOC,null,true,false);
             }
             else if ($bReadCommitted === false) {
-                $this->query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ");
+                $sQuery = "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ";
+                $this->query($sQuery,array(),PDO::FETCH_ASSOC,null,true,false);
             }
             $this->cInstance->beginTransaction();
             $this->bTransaction = true;
@@ -886,6 +864,50 @@ Error Type <?= $aError[1] ?>: <?= $aError[2] ?>
         return $this->sLastQuery;
     }
 
+    /**
+     * All errors pass through here
+     * @param string sMsg The DBConnect error message
+     * @param bool bDump If true, dumps query info triggering error
+     */
+    private function triggerError($sMsg, $bDump=false) {
+        if ($this->bDebug) {
+            echo "<pre>";
+            ob_start();
+            echo "========================================================".PHP_EOL;
+            echo "** DBConnect Error **".PHP_EOL;
+            echo $sMsg . PHP_EOL;
+            if ($bDump) {
+                if ($this->cStatement !== null) {
+                    $aError = $this->cStatement->errorInfo();
+                    echo "========================================================".PHP_EOL;
+                    echo "** SQL Error Info **".PHP_EOL;
+                    echo "ERROR {$aError[1]} ({$aError[0]}): {$aError[2]}".PHP_EOL;
+                    echo PHP_EOL;
+                    echo $this->statementReturn($this->cStatement) . PHP_EOL;
+                    echo PHP_EOL . PHP_EOL;
+                }
+                if (!empty($this->sLastQuery)) {
+                    echo "========================================================".PHP_EOL;
+                    echo "** Query Log **";
+                    echo PHP_EOL;
+                    echo $this->getLast() . PHP_EOL;
+                    echo PHP_EOL;
+                }
+            }
+            echo "========================================================".PHP_EOL;
+            echo htmlspecialchars(ob_get_clean(), ENT_QUOTES);
+            echo "</pre>";
+        }
+        // The non-debug message
+        trigger_error("A database error has occurred", E_USER_ERROR);
+    }
+
+    /**
+     * Trigger error with dump of query information
+     */
+    private function triggerErrorDump($sMsg) {
+        $this->triggerError($sMsg, true);
+    }
 }
 
 } // Include guard end
