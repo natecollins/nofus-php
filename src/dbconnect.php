@@ -78,6 +78,7 @@ class DBConnect {
     private $cInstance;        // the instance of the PDO connection
     private $cStatement;       // the current statement (needed for queryLoop()/queryNext())
     private $bDebug;           // Enabled detailed debug info display
+    private $sErrMessage;      // The error message if an exception is thrown
 
     /**
      * Constructor requires valid MySQL connection server(s) in an array.
@@ -110,6 +111,7 @@ class DBConnect {
         $this->cInstance = null;
         $this->cStatement = null;
         $this->bDebug = false;
+        $this->sErrMessage = null;
 
         # psudeo verify connection info (vars exist, not empty)
         if (is_array($conn_info)) {
@@ -435,7 +437,7 @@ class DBConnect {
      * @param mixed vFetchArg Additional argument to pass if the fetch style requires it
      * @param boolean bFetchAll If true, all rows from a SELECT will be returned; if false, no rows will be returned (see queryNext())
      * @param boolean bRecordQuery If false, will not place query into query log (hides extra query calls internal to DBConnect)
-     * @return array|int|null|false An array of rows for SELECT; primary key for INSERT (NULL is none returned); number of rows affected for UPDATE/DELETE/REPLACE. If a SQL error occurs, a E_USER_WARNING is triggered and false is returned.
+     * @return array|int|null|false An array of rows for SELECT; primary key for INSERT (NULL is none returned); number of rows affected for UPDATE/DELETE/REPLACE. If a SQL error occurs, an Exception is thrown and false is returned.
      */
     public function query($mQuery, $aValues=array(), $iFetchStyle=PDO::FETCH_ASSOC, $vFetchArg=null, $bFetchAll=true, $bRecordQuery=true) {
         $this->iQueryCount += 1;
@@ -448,6 +450,7 @@ class DBConnect {
         # the array where the rows are to be stored
         $aRows = array();
         # clear the last statement
+        $this->sErrMessage = null;
         $this->cStatement = null;
         $bIsInsert = false;
         $bIsUpdateDelete = false;
@@ -469,6 +472,7 @@ class DBConnect {
         }
         else {
             $this->triggerError("Error: Method query() does not have a valid prepared statement to execute against.");
+            return false;
         }
 
         # run query
@@ -491,6 +495,7 @@ class DBConnect {
             $this->rollbackTransaction();
             $this->recordQuery($this->cStatement);
             $this->triggerErrorDump("Error: Query execute failed.");
+            return false;
         }
         if ($bRecordQuery) {
             $this->recordQuery($this->cStatement);
@@ -542,9 +547,10 @@ class DBConnect {
      *
      * @param string sQuery String query with ? placeholders for linearly inserted values, or :name placeholders for associative values
      * @param int iReconnectAttempts If server has gone away, will attempt this many reconnects before failing
-     * @return array(PDOStatement,bool,bool)|false The statement for the prepared query. If a SQL error occurs, a E_USER_WARNING is triggered and false is returned.
+     * @return array(PDOStatement,bool,bool)|false The statement for the prepared query. If a SQL error occurs, an Exception is thrown and false is returned.
      */
     public function prepare($sQuery, $iReconnectAttempts=1) {
+        $this->sErrMessage = null;
         $oStatement = false;
 
         # query type
@@ -554,6 +560,7 @@ class DBConnect {
         # create connection if one doesn't exist
         if ( !$this->create() ) {
             $this->triggerError("Error: Could not establish connection to server.");
+            return false;
         }
 
         # catch timed out connections and attempt to reconnect
@@ -570,11 +577,13 @@ class DBConnect {
                 }
                 else {
                     $this->triggerError("Error: Lost connection to SQL server and could not re-connect.");
+                    return false;
                 }
             }
         }
         if ($oStatement == false) {
             $this->triggerErrorDump("Error: SQL could not prepare query; it is not valid or references something non-existant.".PHP_EOL.PHP_EOL.$sQuery);
+            return false;
         }
 
         return array($oStatement,$bIsInsert,$bIsUpdateDelete);
@@ -691,7 +700,7 @@ class DBConnect {
      * @return string The emulated query string with escaped values inserted
      */
     public function queryDump($sQuery, $aValues=array()) {
-        echo "<br /><pre>".$this->queryReturn($sQuery,$aValues)."</pre><br />";
+        echo "<pre>".$this->queryReturn($sQuery,$aValues)."</pre>";
         return null;
     }
 
@@ -801,6 +810,7 @@ class DBConnect {
      *                                     level is set (MySQL default is "REPEATABLE READ").
      */
     public function startTransaction($bReadCommitted=null) {
+        $this->sErrMessage = null;
         # create connection if one doesn't exist
         if ( !$this->create() ) return null;
 
@@ -870,36 +880,12 @@ class DBConnect {
      * @param bool bDump If true, dumps query info triggering error
      */
     private function triggerError($sMsg, $bDump=false) {
+        $this->sErrMessage = $sMsg;
         if ($this->bDebug) {
-            echo "<pre>";
-            ob_start();
-            echo "========================================================".PHP_EOL;
-            echo "** DBConnect Error **".PHP_EOL;
-            echo $sMsg . PHP_EOL;
-            if ($bDump) {
-                if ($this->cStatement !== null) {
-                    $aError = $this->cStatement->errorInfo();
-                    echo "========================================================".PHP_EOL;
-                    echo "** SQL Error Info **".PHP_EOL;
-                    echo "ERROR {$aError[1]} ({$aError[0]}): {$aError[2]}".PHP_EOL;
-                    echo PHP_EOL;
-                    echo $this->statementReturn($this->cStatement) . PHP_EOL;
-                    echo PHP_EOL . PHP_EOL;
-                }
-                if (!empty($this->sLastQuery)) {
-                    echo "========================================================".PHP_EOL;
-                    echo "** Query Log **";
-                    echo PHP_EOL;
-                    echo $this->getLast() . PHP_EOL;
-                    echo PHP_EOL;
-                }
-            }
-            echo "========================================================".PHP_EOL;
-            echo htmlspecialchars(ob_get_clean(), ENT_QUOTES);
-            echo "</pre>";
+            $this->getErrorInfo($bDump);
         }
         // The non-debug message
-        trigger_error("A database error has occurred", E_USER_ERROR);
+        throw new Exception("A database error has occurred");
     }
 
     /**
@@ -907,6 +893,46 @@ class DBConnect {
      */
     private function triggerErrorDump($sMsg) {
         $this->triggerError($sMsg, true);
+    }
+
+    /**
+     * Get information regarding the last error/exception thrown
+     *
+     * @param bool bDump If set to true, outputs the error info directly into a HTML stream
+     * @return string Returns the error info
+     */
+    public function getErrorInfo($bDump=false) {
+        ob_start();
+        echo "========================================================".PHP_EOL;
+        echo "** DBConnect Error **".PHP_EOL;
+        echo $this->sErrMessage. PHP_EOL;
+        if ($bDump) {
+            if ($this->cStatement !== null) {
+                $aError = $this->cStatement->errorInfo();
+                echo "========================================================".PHP_EOL;
+                echo "** SQL Error Info **".PHP_EOL;
+                echo "ERROR {$aError[1]} ({$aError[0]}): {$aError[2]}".PHP_EOL;
+                echo PHP_EOL;
+                echo $this->statementReturn($this->cStatement) . PHP_EOL;
+                echo PHP_EOL . PHP_EOL;
+            }
+            if (!empty($this->sLastQuery)) {
+                echo "========================================================".PHP_EOL;
+                echo "** Query Log **";
+                echo PHP_EOL;
+                echo $this->getLast() . PHP_EOL;
+                echo PHP_EOL;
+            }
+        }
+        echo "========================================================".PHP_EOL;
+        $sErrInfo = ob_get_clean();
+
+        if ($bDump) {
+            echo "<pre>";
+            echo htmlspecialchars($sErrInfo, ENT_QUOTES);
+            echo "</pre>";
+        }
+        return $sErrInfo;
     }
 }
 

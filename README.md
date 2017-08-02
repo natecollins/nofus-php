@@ -346,10 +346,15 @@ foreach ($names as $row) {
 ```
 
 **Showing Errors and Debug Information**  
-By default, an uninformative message is thrown on errors and exceptions. To enable detailed errors and output of
-query information during development, make sure you enable debugging information:  
+By default, an uninformative message is thrown on Exceptions. To enable automatic display of detailed errors
+and output of query information during development, make sure you enable debugging information:  
 ```php
 $db->enableDebugInfo();
+```
+
+Alternatively, you can manually retrieve the error information after catching the Exception:  
+```
+echo $db->getErrorInfo();
 ```
 
 **Throwing Exceptions**  
