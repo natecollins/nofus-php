@@ -78,6 +78,7 @@ class DBConnect {
     private $cInstance;        // the instance of the PDO connection
     private $cStatement;       // the current statement (needed for queryLoop()/queryNext())
     private $bDebug;           // Enabled detailed debug info display
+    private $bAutoDump;        // When enabled, will auto dump error information to the output stream
     private $sErrMessage;      // The error message if an exception is thrown
 
     /**
@@ -111,6 +112,7 @@ class DBConnect {
         $this->cInstance = null;
         $this->cStatement = null;
         $this->bDebug = false;
+        $this->bAutoDump = false;
         $this->sErrMessage = null;
 
         # psudeo verify connection info (vars exist, not empty)
@@ -128,32 +130,41 @@ class DBConnect {
         }
 
         if ($bLoadBalance) { $this->loadBalance(); }
-     }
+    }
 
-     /**
-      * Set (or unset) the query log and whether or not additional debugging info will be displayed on errors.
-      * @param bool bDebug Will enable debug info if true (default), or disable on false
-      */
-     public function enableDebugInfo($bDebug=true) {
-        $this->bDebug = $bDebug;
-     }
+    /**
+     * Set (or unset) the query log and whether or not additional debugging info will be displayed on errors.
+     * @param bool bAutoDump Will enable auto dumping debug info to output if true, or disable on false
+     */
+    public function enableDebugInfo($bAutoDump=true) {
+        $this->bDebug = true;
+        $this->bAutoDump = $bAutoDump;
+    }
 
-     /**
-      * Set whether or not errors should throw exceptions when a MySQL error occurs
-      *
-      * @param boolean silent Do not show exceptions if set to true; does throw exceptions if set to false
-      */
-     public function silentErrors($silent=true) {
-         if ($this->connectionExists()) {
-            if ($silent == false) {
-                 /* Throw exceptions on SQL error */
-                $this->cInstance->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-            }
-            else {
-                /* No exceptions thrown */
-                $this->cInstance->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_SILENT);
-            }
-        }
+    /**
+     * Disables detailed error information and also disables auto dumping of information
+     */
+    public function disableDebugInfo() {
+        $this->bDebug = false;
+        $this->bAutoDump = false;
+    }
+
+    /**
+     * Set whether or not errors should throw exceptions when a MySQL error occurs
+     *
+     * @param boolean silent Do not show exceptions if set to true; does throw exceptions if set to false
+     */
+    public function silentErrors($silent=true) {
+        if ($this->connectionExists()) {
+           if ($silent == false) {
+                /* Throw exceptions on SQL error */
+               $this->cInstance->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+           }
+           else {
+               /* No exceptions thrown */
+               $this->cInstance->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_SILENT);
+           }
+       }
     }
 
     /**
@@ -883,13 +894,16 @@ class DBConnect {
         $this->sErrMessage = $sMsg;
         if ($this->bDebug) {
             $this->getErrorInfo($bDump);
+            throw new Exception($this->sErrMessage);
         }
-        // The non-debug message
-        throw new Exception("A database error has occurred");
+        else {
+            // The non-debug message
+            throw new Exception("A database error has occurred");
+        }
     }
 
     /**
-     * Trigger error with dump of query information
+     * Trigger error with dump of query information if autodump is enabled
      */
     private function triggerErrorDump($sMsg) {
         $this->triggerError($sMsg, true);
@@ -898,7 +912,7 @@ class DBConnect {
     /**
      * Get information regarding the last error/exception thrown
      *
-     * @param bool bDump If set to true, outputs the error info directly into a HTML stream
+     * @param bool bDump If set to true and autodumping is enabled, outputs the error info directly into a HTML stream
      * @return string Returns the error info
      */
     public function getErrorInfo($bDump=false) {
@@ -927,7 +941,7 @@ class DBConnect {
         echo "========================================================".PHP_EOL;
         $sErrInfo = ob_get_clean();
 
-        if ($bDump) {
+        if ($this->bAutoDump && $bDump) {
             echo "<pre>";
             echo htmlspecialchars($sErrInfo, ENT_QUOTES);
             echo "</pre>";

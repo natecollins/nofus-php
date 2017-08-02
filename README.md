@@ -349,12 +349,18 @@ foreach ($names as $row) {
 By default, an uninformative message is thrown on Exceptions. To enable automatic display of detailed errors
 and output of query information during development, make sure you enable debugging information:  
 ```php
-$db->enableDebugInfo();
+$db->enableDebugInfo();         // See descriptive errors, and dumps error info into output stream
 ```
+
+To enabled detailed exception messages, but disable auto-dumping query error information to the output stream:  
+```
+$db->enableDebugInfo(false);    // See descriptive errors, but no dumping into output stream
+```
+
 
 Alternatively, you can manually retrieve the error information after catching the Exception:  
 ```
-echo $db->getErrorInfo();
+echo $db->getErrorInfo();       // Manually get error info
 ```
 
 **Throwing Exceptions**  
