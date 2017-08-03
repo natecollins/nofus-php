@@ -585,6 +585,19 @@ will return the default value.
 $ud_date->filterRegExp('/^\d{4}-\d\d-\d\d$/');
 ```
 
+**Checking if Field with Name Exists**  
+To check if a field with a given name exists, even if the value passed
+was blank.  
+```
+$ud_check = UserData::create('check');
+if ($ud_check->exists()) {
+    echo "Field with name 'check' was submitted.";
+}
+else {
+    echo "Field 'check' was not sent to us.";
+}
+```
+
 **Get Errors**  
 If your value is out of bounds of a filter, it will genereate an error
 message. All error messages are stored in an array. Using `getErrors()`
