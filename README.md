@@ -599,7 +599,7 @@ else {
 ```
 
 **Get Errors**  
-If your value is out of bounds of a filter, it will genereate an error
+If your value is out of bounds of a filter, it will generate an error
 message. All error messages are stored in an array. Using `getErrors()`
 you can retrieve and view those filter errors.  
 ``` 
