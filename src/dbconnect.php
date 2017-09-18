@@ -72,7 +72,7 @@ class DBConnect {
     private $aServers;         // server array - where to connect to
     private $iServerIndex;     // index of the server currently connected to
     private $iQueryCount;      // number of queries run in this instance of this class
-    private $sLastQuery;       // the last query that attempted to run
+    private $sLastQuery;       // the last query (or queries) that attempted to run
     private $bTransaction;     // whether or not we are running a transaction
     private $bPersistent;      // whether to establish a persistent connection to the database
     private $cInstance;        // the instance of the PDO connection
@@ -461,8 +461,11 @@ class DBConnect {
         # the array where the rows are to be stored
         $aRows = array();
         # clear the last statement
-        $this->sErrMessage = null;
+        if ($this->cStatement !== null) {
+            $this->cStatement->closeCursor();
+        }
         $this->cStatement = null;
+        $this->sErrMessage = null;
         $bIsInsert = false;
         $bIsUpdateDelete = false;
 
