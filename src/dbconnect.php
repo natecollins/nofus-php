@@ -192,7 +192,7 @@ class DBConnect {
         /* Get all valid table name and column name identifiers */
         $aValids = array_merge($this->getTables(),$this->getAllColumns());
         foreach ($aValids as $sValid) {
-            if ($sName == $sValid) {
+            if ($sName === $sValid) {
                 $sSafe = $sValid;
                 if ($bBacktick) $sSafe = '`'.str_replace("`","``",$sSafe).'`';
                 break;
