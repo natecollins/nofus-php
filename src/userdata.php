@@ -181,6 +181,14 @@ class UserData {
         return $mValue;
     }
 
+    /**
+     * Check if field name was passed, regardless of whether any value was sent
+     * @return bool Returns true if a field with the name was passed
+     */
+    public function exists() {
+        return ($this->getValue() !== null);
+    }
+
     public function getStr($mDefault=null) {
         $sValue = $this->getValue();
         if (!$this->matchesRegExp($sValue)) {

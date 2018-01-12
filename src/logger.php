@@ -80,10 +80,10 @@ class Logger implements LoggingInterface {
     // Instance of class implementing LoggingInterface
     static private $oLogger = null;
 
-    private $sLogFile;
-    private $iLogLevel;
+    protected $sLogFile;
+    protected $iLogLevel;
 
-    private function __construct($sLogFile=null, $iLogLevel=self::LOG_ALL) {
+    protected function __construct($sLogFile=null, $iLogLevel=self::LOG_ALL) {
         $this->sLogFile = $sLogFile;
         $this->iLogLevel = $iLogLevel;
     }

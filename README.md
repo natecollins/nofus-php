@@ -227,7 +227,7 @@ of rows; `INSERT` queries return the unique id of the new row or `null` otherwis
 and `UPDATE` queries return the number of rows affected.  
 
 Additional means of running queries include:  
- - `queryRow` Only the first row of results is returned. By default, throws `E_USER_ERROR` if no rows were found.
+ - `queryRow` Only the first row of results is returned. If no rows are found, returns null.
  - `queryColumn` Returns an array containing the values of a specific column. By default, the first column is used.
  - `queryLoop` & `queryNext` For gathering results one row at a time. See examples below.
  - `queryPrepare` For manually creating a prepared query, with the ability to re-use it multiple times.
@@ -258,15 +258,6 @@ $query = "SELECT firstname, lastname FROM users WHERE user_id = ?";
 $values = array(42);
 
 $row = $db->queryRow($query, $values);
-
-echo "{$row['lastname']}, {$row['firstname']}";
-
-####################################################
-# Single Row Query (optional)
-$query = "SELECT firstname, lastname FROM users WHERE user_id = ?";
-$values = array(42);
-
-$row = $db->queryRow($query, $values, false);
 
 if ($row !== null) {
     echo "{$row['lastname']}, {$row['firstname']}";
@@ -361,8 +352,26 @@ foreach ($names as $row) {
 
 ```
 
+**Showing Errors and Debug Information**  
+By default, an uninformative message is thrown on Exceptions. To enable automatic display of detailed errors
+and output of query information during development, make sure you enable debugging information:  
+```php
+$db->enableDebugInfo();         // See descriptive errors, and dumps error info into output stream
+```
+
+To enabled detailed exception messages, but disable auto-dumping query error information to the output stream:  
+```
+$db->enableDebugInfo(false);    // See descriptive errors, but no dumping into output stream
+```
+
+
+Alternatively, you can manually retrieve the error information after catching the Exception:  
+```
+echo $db->getErrorInfo();       // Manually get error info
+```
+
 **Throwing Exceptions**  
-The `silentErrors()` method will set the `PDO::ATTR_ERRMODE`. By default, exceptions
+The `silentErrors()` method will set the `PDO::ATTR_ERRMODE`. By default, PDO exceptions
 will be thrown.  
 ```php
 $db->silentErrors();        // disables exceptions on MySQL errors
@@ -383,12 +392,13 @@ data for use in your queries.
 For performance reasons, this method only queries the database for identifiers the first time it is called. The
 method caches the results and any subsequent calls make use of the data previously loaded.  
 
-An optional second boolean parameter can be passed if you want the resulting identifier to be backtick quoted.  
+An optional second boolean parameter can be passed if you want to specify that the resulting identifier should not be
+backtick quoted.  
 ```php
 $column = $obj->getColumnMatch();   // NOT user supplied data
 
-$safe_column    = $db->escapeIdentifier($column);
-// $safe_column = $db->escapeIdentifier($column, true);  // optionally, escaped with backticks
+// $safe_column = $db->escapeIdentifier($column);        // by default, result is escaped with backticks
+$safe_column    = $db->escapeIdentifier($column, false); // or you can have it not escape with backticks
 
 if ($safe_column == '') {
     echo "Unable to match column!";
@@ -417,9 +427,9 @@ $db->close();
 ```php
 // prints the domain string used for the 'host' when the current connection was created
 $db->getHost();
-// if no connection exists, or if the connection was closed, "No Connection" will be returned
+// if no connection exists or if the connection was closed, empty string will be returned
 $db->close(); 
-$db->getHost(); // returns 'No Connection'
+$db->getHost(); // returns ''
 ```
 
 **Get Database Name**  
@@ -582,8 +592,21 @@ will return the default value.
 $ud_date->filterRegExp('/^\d{4}-\d\d-\d\d$/');
 ```
 
+**Checking if Field with Name Exists**  
+To check if a field with a given name exists, even if the value passed
+was blank.  
+```
+$ud_check = UserData::create('check');
+if ($ud_check->exists()) {
+    echo "Field with name 'check' was submitted.";
+}
+else {
+    echo "Field 'check' was not sent to us.";
+}
+```
+
 **Get Errors**  
-If your value is out of bounds of a filter, it will genereate an error
+If your value is out of bounds of a filter, it will generate an error
 message. All error messages are stored in an array. Using `getErrors()`
 you can retrieve and view those filter errors.  
 ``` 
