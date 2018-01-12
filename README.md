@@ -10,6 +10,13 @@ when web programming from scratch with PHP. Each class can be used independently
 * [userdata.php](#userdataphp) - Simple validator for user data
 
 
+Installation
+-----------------------
+The recommended method of installation is to use [Composer](https://getcomposer.org/). However,
+if all you need is a specific file, it can be downloaded independently and will work without any
+of the other files present.  
+
+
 configfile.php
 -----------------------
 A class to read in plain text config files.  
