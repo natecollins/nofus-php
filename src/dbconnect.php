@@ -74,12 +74,12 @@ class DBConnect {
     private $iQueryCount;      // number of queries run in this instance of this class
     private $sLastQuery;       // the last query (or queries) that attempted to run
     private $bTransaction;     // whether or not we are running a transaction
-    private $bPersistent;      // whether to establish a persistent connection to the database
     private $cInstance;        // the instance of the PDO connection
     private $cStatement;       // the current statement (needed for queryLoop()/queryNext())
     private $bDebug;           // Enabled detailed debug info display
     private $bAutoDump;        // When enabled, will auto dump error information to the output stream
     private $sErrMessage;      // The error message if an exception is thrown
+    private $aPDOAttrs;        // PDO Attributes to set when creating connections
 
     /**
      * Constructor requires valid MySQL connection server(s) in an array.
@@ -108,12 +108,17 @@ class DBConnect {
         $this->iQueryCount = 0;
         $this->sLastQuery = null;
         $this->bTransaction = false;
-        $this->bPersistent = false;
         $this->cInstance = null;
         $this->cStatement = null;
         $this->bDebug = false;
         $this->bAutoDump = false;
         $this->sErrMessage = null;
+        $this->aPDOAttrs = array();
+
+        # defeault PDO attributes
+        $this->setPDOAttribute(PDO::ATTR_EMULATE_PREPARES, false);
+        $this->setPDOAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $this->setPDOAttribute(PDO::MYSQL_ATTR_INIT_COMMAND, "SET NAMES utf8mb4");
 
         # psudeo verify connection info (vars exist, not empty)
         if (is_array($conn_info)) {
@@ -150,26 +155,42 @@ class DBConnect {
     }
 
     /**
+     * Set a PDO attribute to a given value. If a connection to the database had previously
+     * been established, this will disconnect the existing connection.
+     * @param int iAttr The PDO attribute to set
+     * @param mixed mAttrVal The value to set the PDO attribute to; if null, will unset any custom attributes
+     */
+    public function setPDOAttribute($iAttr, $mAttrVal) {
+        if ($mAttrVal === null) {
+            unset($this->aPDOAttrs[$iAttr]);
+        }
+        else {
+            $this->aPDOAttrs[$iAttr] = $mAttrVal;
+        }
+
+        // Force close connection if it was already established
+        $this->close();
+    }
+
+    /**
      * Set whether or not errors should throw exceptions when a MySQL error occurs
-     *
      * @param boolean silent Do not show exceptions if set to true; does throw exceptions if set to false
      */
     public function silentErrors($silent=true) {
         if ($this->connectionExists()) {
-           if ($silent == false) {
+            if ($silent == false) {
                 /* Throw exceptions on SQL error */
-               $this->cInstance->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-           }
-           else {
-               /* No exceptions thrown */
-               $this->cInstance->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_SILENT);
-           }
-       }
+                $this->setPDOAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            }
+            else {
+                /* No exceptions thrown */
+                $this->setPDOAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_SILENT);
+            }
+        }
     }
 
     /**
      * Check database connection
-     *
      * @return boolean Returns true if a connection to the database exists; false otherwise
      */
     public function connectionExists() {
@@ -211,15 +232,12 @@ class DBConnect {
     }
 
     /**
+     * DEPRECATED: Use setPDOAttribute(PDO::ATTR_PERSISTENT, true|false) instead
      * Set connection peristance; if persistance is changed, then recreate the database connection
-     *
      * @param boolean bPersistent If true, the connnection will be persistent; otherwise it will not be
      */
     public function setPersistentConnection($bPersistent=false) {
-        if ($this->bPersistent != $bPersistent) {
-            $this->bPersistent = $bPersistent;
-            $this->create(true);
-        }
+        $this->setPDOAttribute(PDO::ATTR_PERSISTENT, $bPersistent);
     }
 
     /**
@@ -249,16 +267,8 @@ class DBConnect {
                 try {
                     $cInst = new PDO(
                                 "mysql:host={$aServer['host']};dbname={$aServer['database']};port={$aServer['port']}",
-                                $aServer['username'], $aServer['password'],
-                                array(
-                                    PDO::ATTR_PERSISTENT=>$this->bPersistent,
-                                    PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4"
-                                )
+                                $aServer['username'], $aServer['password'], $this->aPDOAttrs
                             );
-                    // enable true prepared statements (instead of emulation, which forces all values to be strings)
-                    $cInst->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
-                    // default to throwing exceptions for PDO errors
-                    $cInst->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
                 }
                 /* Shut down all the execptions while on the connection level! */
                 catch (Exception $e) {
