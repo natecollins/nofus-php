@@ -528,8 +528,9 @@ class UserData {
     }
 
     /**
-     *
-     * @return string|null The proper length value, or null if an invalid length
+     * Apply the length filter to a string input
+     * @param string sValue The string value to apply length limits to
+     * @return string|null The proper length value, or null if an invalid length or input was not a string
      */
     private function applyLength($sValue) {
         $mReturn = null;
@@ -539,7 +540,7 @@ class UserData {
             }
             elseif ($this->iLengthMax !== null && strlen($sValue) > $this->iLengthMax) {
                 if ($this->bTruncateLength) {
-                    $mReturn = substr($mValue, 0, $this->iLengthMax);
+                    $mReturn = substr($sValue, 0, $this->iLengthMax);
                 }
                 else {
                     $this->aErrors[] = "Value is longer than the maximum length.";
