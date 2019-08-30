@@ -379,6 +379,16 @@ $db->silentErrors(true);    // also disables exceptions on MySQL errors
 $db->silentErrors(false);   // an exception will be thrown on MySQL errors from this connection
 ```
 
+**Setting PDO Attributes Manually**  
+You can always set PDO Attributes maually with the `setPDOAttribute()` method. This takes a PDO constant
+and an appropriate value and sets the attribute when creating a connection. If an attribute is set to `null`,
+then that previously set attribute is removed and will not be set. If a database connection had previously been
+established, calling this method will disconnect it, forcing a new connection with the updated attribute when
+the next query is called.  
+```php
+$db->setPDOAttribute(PDO::MYSQL_ATTR_COMPRESS, 1);
+```
+
 **Sanitizing Identifiers**  
 Table and column names are not typically something you want to use variables for, but there are rare circumstances
 where it might be needed. By calling `escapeIdentifier()`, you can ensure your identifer is sanitized and safe from
