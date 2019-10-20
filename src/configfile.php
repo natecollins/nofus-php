@@ -161,7 +161,7 @@ class ConfigFile {
         $this->aErrors = array();
         $this->aValues = array();
 
-        # Parse sFileToOpen, if null, then this is a scope query result
+        # Parse sFileToOpen
         if ($sFileToOpen != null && is_string($sFileToOpen)) {
             $this->sFilePath = $sFileToOpen;
         }
@@ -351,8 +351,8 @@ class ConfigFile {
             if ($sEscCommentStarts != "") { $sEscCommentStarts .= "|"; }
             $sEscCommentStarts .= preg_quote($sCommentStart, '/');
         }
-        #                -------------- NAME CHARS -------- SCOPE CHAR --- NAME CHARS -------------------- ALLOW COMMENTS AFTER -----
-        $sScopePattern = "/^\s*\[\s*(?:[{$sValidCharSet}]+(?:{$sScopeChar}[{$sValidCharSet}]+)*)\s*\]\s*(?:({$sEscCommentStarts}).*)?$/";
+        #                ---------------- NAME CHARS -------- SCOPE CHAR --- NAME CHARS -------------------- ALLOW COMMENTS AFTER -----
+        $sScopePattern = "/^\s*\[\s*(?:[{$sValidCharSet}]+(?:{$sScopeChar}[{$sValidCharSet}]+)*)?\s*\]\s*(?:({$sEscCommentStarts}).*)?$/";
 
         # default to not a scope
         $bValid = false;
@@ -376,8 +376,8 @@ class ConfigFile {
             if ($sEscCommentStarts != "") { $sEscCommentStarts .= "|"; }
             $sEscCommentStarts .= preg_quote($sCommentStart, '/');
         }
-        #                ------------ NAME CHARS -------- SCOPE CHAR --- NAME CHARS -------------------- ALLOW COMMENTS AFTER -----
-        $sScopePattern = "/^\s*\[\s*([{$sValidCharSet}]+(?:{$sScopeChar}[{$sValidCharSet}]+)*)\s*\]\s*(?:({$sEscCommentStarts}).*)?$/";
+        #                -------------- NAME CHARS -------- SCOPE CHAR --- NAME CHARS --------------------- ALLOW COMMENTS AFTER -----
+        $sScopePattern = "/^\s*\[\s*([{$sValidCharSet}]+(?:{$sScopeChar}[{$sValidCharSet}]+)*)?\s*\]\s*(?:({$sEscCommentStarts}).*)?$/";
 
         # check for invalid characters
         if (preg_match($sScopePattern, $sLine, $aMatches) === 1) {
@@ -435,14 +435,6 @@ class ConfigFile {
             if (preg_match($sQuoteValPattern, $sLine) === 1) {
                 $bQuotedValue = true;
             }
-
-            if ($bQuotedValue == false && $iLineForError !== null) {
-                # if not a valid quoted value, but has a valid open quote, add an error
-                $sOpenQuotePattern = "/^[^{$sEscDelim}]+{$sEscDelim}\s*{$sEscQuote}/";
-                if (preg_match($sOpenQuotePattern, $sLine) === 1) {
-                    $this->addError($iLineForError, "Open quotes with missing or invalid close quotes.");
-                }
-            }
         }
 
         return $bQuotedValue;
@@ -467,7 +459,7 @@ class ConfigFile {
                 if ($sEscCommentStarts != "") { $sEscCommentStarts .= "|"; }
                 $sEscCommentStarts .= preg_quote($sCommentStart, '/');
             }
-            #                   ---- NAME --------- DELIMITER ---- OPEN QUOTE --- ALLOW ESCAPED QUOTES --- NO UNESCAPED QUOTES -- NON ESCAPED CLOSE QUOTE ------ ALLOW COMMENTS AFTER ----
+            #                    ----- NAME --------- DELIMITER ---- OPEN QUOTE --- ALLOW ESCAPED QUOTES --- NO UNESCAPED QUOTES -- NON ESCAPED CLOSE QUOTE ------ ALLOW COMMENTS AFTER ----
             $sQuoteValPattern = "/^[^{$sEscDelim}]+{$sEscDelim}\s*{$sEscQuote}((?:{$sEscEscape}{$sEscQuote}|[^{$sEscQuote}])*)(?<!{$sEscEscape}){$sEscQuote}\s*(?:({$sEscCommentStarts}).*)?$/";
 
             if (preg_match($sQuoteValPattern, $sLine, $aMatches) === 1) {
