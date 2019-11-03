@@ -26,6 +26,7 @@ final class ConfigFileTest extends TestCase {
         $this->assertEquals(    'default val',                              $cf->get('invalid.var', 'default val'));
         $this->assertEquals(    42,                                         $cf->get('var1'));
         $this->assertEquals(    92,                                         $cf->get('var2'));
+        $this->assertEquals(    [92],                                       $cf->getArray('var2'));
         $this->assertEquals(    'a string',                                 $cf->get('var_3'));
         $this->assertEquals(    'quoted string',                            $cf->get('VAR-4'));
         $this->assertEquals(    'Mis "quoted" string',                      $cf->get('_VAR5_'));

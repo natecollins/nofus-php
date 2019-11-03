@@ -527,9 +527,7 @@ class ConfigFile {
         }
 
         # trim off any whitespace
-        $sLine = trim($sLine);
-
-        return $sLine;
+        return trim($sLine);
     }
 
     /**
