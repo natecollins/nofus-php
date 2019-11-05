@@ -1,9 +1,10 @@
-web-utilities
-=======================
+# NOFUS: Nate's One-File Utilities Stash
+## About NOFUS
+A collection of single purpose classes for common tasks, focusing on simple and
+straightforward use. Each class can be taken and used individually and requires
+no external dependencies.  
 
-Web-utilities is a set of simple-to-use tools designed to deal with some of the basic hurdles
-when web programming from scratch with PHP. Each class can be used independently of the rest.  
-
+**Classes**  
 * [configfile.php](#configfilephp) - Easy parser for config files
 * [logger.php](#loggerphp) - Simple logger class with built-in file logging implementation
 * [dbconnect.php](#dbconnectphp) - Quick, safe interface for making MySQL/MariaDB queries
