@@ -1,8 +1,9 @@
 <?php
 require_once dirname(__DIR__) . '/vendor/autoload.php';
-require_once dirname(__DIR__) . '/src/configfile.php';
+require_once dirname(__DIR__) . '/src/ConfigFile.php';
 
 use PHPUnit\Framework\TestCase;
+use Nofus\ConfigFile;
 
 final class ConfigFileTest extends TestCase {
 

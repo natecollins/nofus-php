@@ -40,11 +40,8 @@ A class to read in plain text config files.
 
 email = me@example.com
 name = John Doe     # End line comments allowed
-
 debug_mode
-
 nickname = " John \"Slick\" Doe "
-
 date.birth = 1975-02-18
 
 [address]
@@ -61,11 +58,12 @@ work.city = Napoleon
 name = Alice
 name = Bobby
 name = Chris
-
 ```
 
 **Examples:**
 ```php
+use Nofus\Configfile;
+
 # Create config file object and attempt to load it
 $cf = new ConfigFile('app.conf');
 
@@ -158,7 +156,9 @@ A class to create logs, with a built-in simple file-logging implementation
   - Can specify log levels
 
 Examples:  
-```
+```php
+use Nofus\Logger;
+
 # Initialize logger with built-in file logger; default level logs all levels
 Logger::initialize('/path/to/file.log')
 
@@ -200,6 +200,8 @@ or there are no connection left to try.
 
 Pass the array of connection parameters to the `DBConnect` object to prepare your connection.  
 ```php
+use Nofus\DBConnect;
+
 $sql_servers = array(
     array(
         'host'=>'primarymysql.example.com',
@@ -517,7 +519,9 @@ A class to access and validate user data types from GET, POST, COOKIE, and FILES
 When creating a new UserData object, you must specify the name of the data field to retrieve, and
 optionally name where to look for the data at. If not specified, UserData will look for the
 value field in-order from these locations: GET, POST, COOKIE, and FILES.  
-```
+```php
+use Nofus\UserData;
+
 # Create UserData objects 
 $ud_userid = new UserData("user_id");
 $ud_message = new UserData("message", "POST");
@@ -530,7 +534,7 @@ $ud_session = UserData::create("sess_key", "COOKIE");
 **Getting Simple Values**  
 Getting simple values is easy, and returns the appropriate value type,
 or returns null if variable name was not passed.  
-```
+```php
 # Get string values
 $firstname = $ud_firstname->getStr();
 $lastname = $ud_lastname->getString();
@@ -551,7 +555,7 @@ $allow_text = $ud_text->getBoolean();
 **Setting Default Values**  
 If no value was found, use the default value passed instead. With
 out a default value specified, the default is null.  
-```
+```php
 $msg_type = $ud_type->getStr("public");
 $guest = $ud_guest->getBoolean("1");
 ```
@@ -560,7 +564,7 @@ $guest = $ud_guest->getBoolean("1");
 If you know the value retrived must be from a set of values, you can
 set a filter to reject all but those values. Any non-allowed values
 will return the default value instead.  
-```
+```php
 $ud_acct->filterAllowed( ['guest','normal','admin'] );
 $acct_type = $ud_acct->getStr("guest");
 ```
@@ -568,7 +572,7 @@ $acct_type = $ud_acct->getStr("guest");
 **Filter by Range**  
 Only applicable when getting integer or float values. Values outside
 the range will return the default value, unless set to limit the value.  
-```
+```php
 $ud_age->filterRange(0,120);
 $age = $ud_age->getInteger();
 
@@ -585,7 +589,7 @@ $ud_limit->filterRange(0, 100, true);
 **Filter by Length**  
 Only applicable for string values. Values not within length limits
 will return the default value, unless set to truncate.  
-```
+```php
 # Filter minimum and maximum length
 $ud_username->filterLength(2, 10);
 
@@ -599,14 +603,14 @@ $ud_username->filterLength(2, 10, true);
 **Filter by Regular Expression**  
 Only applicable for string values. Values not matching pattern
 will return the default value.  
-```
+```php
 $ud_date->filterRegExp('/^\d{4}-\d\d-\d\d$/');
 ```
 
 **Checking if Field with Name Exists**  
 To check if a field with a given name exists, even if the value passed
 was blank.  
-```
+```php
 $ud_check = UserData::create('check');
 if ($ud_check->exists()) {
     echo "Field with name 'check' was submitted.";
@@ -620,7 +624,7 @@ else {
 If your value is out of bounds of a filter, it will generate an error
 message. All error messages are stored in an array. Using `getErrors()`
 you can retrieve and view those filter errors.  
-``` 
+```php
 $errors = $ud_data->getErrors();
 foreach ($errors as $err) {
     echo "$err";
@@ -634,7 +638,7 @@ Get information about an uploaded file. Returns array containing:
  - `size` The size of the uploaded file
  - `tmp_name` The file location and name as it exists on the server
  - `error` An error code if there was a problem with the upload (0 means no error)
-```
+```php
 $file_info = $ud_attachment->getFile();
 ```
 
@@ -642,7 +646,7 @@ $file_info = $ud_attachment->getFile();
 When using PHP form variable arrays, you can use the array version of
 the UserData functions. Any filters you've applied will apply to each
 value of the array.  
-```
+```php
 $string_array = $ud_list->getStrArray();
 # Can still provide default value to return
 $string_array = $ud_list->getStringArray( array() );

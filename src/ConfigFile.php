@@ -83,7 +83,7 @@ a..b = c                # scopes cannot be blank
  **************************************
  * Use examples
  **************************************
-
+use Nofus\ConfigFile;
 $cf = new ConfigFile("test.conf");
 if ($cf->load()) {
     # can preload default values, even after loading
@@ -114,9 +114,10 @@ if ($cf->load()) {
 
 */
 
+namespace Nofus;
 # Include guard, for people who can't remember to use '_once'
-if (!defined('__CONFIGFILE_GUARD__')) {
-    define('__CONFIGFILE_GUARD__',true);
+if (!defined('__NOFUS_CONFIGFILE_GUARD__')) {
+    define('__NOFUS_CONFIGFILE_GUARD__',true);
 
 /**
  * Handles parsing of config files.

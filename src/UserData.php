@@ -33,6 +33,8 @@ or implied, of Nathan Collins.
  * Use examples
  ****************************************
 
+use Nofus\UserData;
+
 # Grab a string from a 'firstname' field from _GET, _POST, or _COOKIE; which ever is found first
 $udFirst = new UserData('firstname');
 $first = $udFirst->getStr();
@@ -84,9 +86,10 @@ $file_array = $udFiles->getFileArray(array());
 
 */
 
+namespace Nofus;
 # Include guard, for people who can't remember to use '_once'
-if (!defined('__USERDATA_GUARD__')) {
-    define('__USERDATA_GUARD__',true);
+if (!defined('__NOFUS_USERDATA_GUARD__')) {
+    define('__NOFUS_USERDATA_GUARD__',true);
 
 /**
  * Handles validation of User/Client Data

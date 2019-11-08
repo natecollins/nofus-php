@@ -32,6 +32,7 @@ or implied, of Nathan Collins.
 /****************************************
  * Use examples
  ****************************************
+use Nofus\Logger;
 
 # Initialize logger with built-in file logger; default level logs all levels
 Logger::initialize('/path/to/file.log')
@@ -54,9 +55,10 @@ Logger::critical("Critical!");
 
 */
 
+namespace Nofus;
 # Include guard, for people who can't remember to use '_once'
-if (!defined('__LOGGER_GUARD__')) {
-    define('__LOGGER_GUARD__',true);
+if (!defined('__NOFUS_LOGGER_GUARD__')) {
+    define('__NOFUS_LOGGER_GUARD__',true);
 
 /**
  * Interface required by Logger instance

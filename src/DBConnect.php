@@ -51,9 +51,10 @@ function dbauth() {
 }
 */
 
+namespace Nofus;
 # Include guard, for people who can't remember to use '_once'
-if (!defined('__DBCONNECT_GUARD__')) {
-    define('__DBCONNECT_GUARD__',true);
+if (!defined('__NOFUS_DBCONNECT_GUARD__')) {
+    define('__NOFUS_DBCONNECT_GUARD__',true);
 
 /**
  *  A wrapper class for MySQL PDO connections.
