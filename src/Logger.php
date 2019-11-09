@@ -34,25 +34,30 @@ or implied, of Nathan Collins.
  ****************************************
 use Nofus\Logger;
 
-# Initialize logger with built-in file logger; default level logs all levels
+# Initialize built-in file logger; default level logs all except TRACE
 Logger::initialize('/path/to/file.log')
 
-# Initialize logger with customize logger levels
-Logger::initialize('/path/to/file.log', Logger::LOG_ERROR | Logger::LOG_CRITICAL);
+# Initialize built-in file logger with customize logger levels
+Logger::initialize('/path/to/file.log', Logger::LOG_ERROR | Logger::LOG_CRITICAL | Logger::LOG_WARNING);
 
 # Disable logger
 Logger::disable();
 
 # Register custom logger instance which implements LoggingInterface
+use Nofus\LoggingInterface;
+class CustomLogger implements LoggingInterface {
+    ...
+}
 Logger::register( new CustomLogger() );
 
 # Make log entries
+Logger::trace("Trace!");
 Logger::debug("Debug!");
+Logger::info("Info!");
 Logger::notice("Notice!");
 Logger::warning("Warning!");
 Logger::error("Error!");
 Logger::critical("Critical!");
-
 */
 
 namespace Nofus;
@@ -71,12 +76,18 @@ interface LoggingInterface {
  * Logger class and default file logging implementation
  */
 class Logger implements LoggingInterface {
-    const LOG_NONE      = 0x00000000;
     const LOG_CRITICAL  = 0x00000001;
     const LOG_ERROR     = 0x00000002;
     const LOG_WARNING   = 0x00000004;
-    const LOG_NOTICE    = 0x00000010;
+    const LOG_NOTICE    = 0x00000008;
+    const LOG_INFO      = 0x00000010;
     const LOG_DEBUG     = 0x00000020;
+    const LOG_TRACE     = 0x00000040;
+
+    const LOG_NONE      = 0x00000000;
+    const LOG_LOW       = 0x00000003;   # CRITICAL & HIGH
+    const LOG_MED       = 0x0000000F;   # LOW + WARNING & NOTICE
+    const LOG_HIGH      = 0x0000003F;   # MED + INFO & DEBUG
     const LOG_ALL       = 0xFFFFFFFF;
 
     // Instance of class implementing LoggingInterface
@@ -85,7 +96,7 @@ class Logger implements LoggingInterface {
     protected $sLogFile;
     protected $iLogLevel;
 
-    protected function __construct($sLogFile=null, $iLogLevel=self::LOG_ALL) {
+    protected function __construct($sLogFile=null, $iLogLevel=self::LOG_HIGH) {
         $this->sLogFile = $sLogFile;
         $this->iLogLevel = $iLogLevel;
     }
@@ -95,7 +106,7 @@ class Logger implements LoggingInterface {
      * @param oLogger An instance of a class that implements LoggingInterface
      */
     static public function register($oLogger) {
-        if (!in_array('LoggingInterface',class_implements($oLogger))) {
+        if (!in_array('Nofus\LoggingInterface', class_implements($oLogger))) {
             trigger_error("Logger failure. Can only register classes which implement LoggingInterface.", E_USER_ERROR);
             exit(1);
         }
@@ -103,11 +114,10 @@ class Logger implements LoggingInterface {
     }
 
     static public function disable() {
-        self::$oLogger = null;
-        self::$iLogLevel = self::LOG_NONE;
+        self::$oLogger = false;
     }
 
-    static public function initialize($sLogFile, $iLogLevel=self::LOG_ALL) {
+    static public function initialize($sLogFile, $iLogLevel=self::LOG_HIGH) {
         $bFileWritable = is_file($sLogFile) && is_writable($sLogFile);
         $bCanCreateFile = !is_file($sLogFile) && is_writable(dirname($sLogFile));
         if ($bFileWritable || $bCanCreateFile) {
@@ -127,7 +137,9 @@ class Logger implements LoggingInterface {
             elseif ($iLogLevel == self::LOG_ERROR) { $sLevel = 'ERROR'; }
             elseif ($iLogLevel == self::LOG_WARNING) { $sLevel = 'WARNING'; }
             elseif ($iLogLevel == self::LOG_NOTICE) { $sLevel = 'NOTICE'; }
+            elseif ($iLogLevel == self::LOG_INFO) { $sLevel = 'INFO'; }
             elseif ($iLogLevel == self::LOG_DEBUG) { $sLevel = 'DEBUG'; }
+            elseif ($iLogLevel == self::LOG_TRACE) { $sLevel = 'TRACE'; }
 
             $sEntry = "[{$sTimestamp}] [{$sLevel}] {$sEntry}" . PHP_EOL;
             if (!file_put_contents($this->sLogFile, $sEntry, FILE_APPEND | LOCK_EX)) {
@@ -164,8 +176,16 @@ class Logger implements LoggingInterface {
         self::processLog($sEntry, self::LOG_NOTICE);
     }
 
+    static public function info($sEntry) {
+        self::processLog($sEntry, self::LOG_INFO);
+    }
+
     static public function debug($sEntry) {
         self::processLog($sEntry, self::LOG_DEBUG);
+    }
+
+    static public function trace($sEntry) {
+        self::processLog($sEntry, self::LOG_TRACE);
     }
 }
 
