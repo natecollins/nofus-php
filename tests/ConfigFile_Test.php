@@ -21,7 +21,14 @@ final class ConfigFileTest extends TestCase {
 
     public function testCanParseAllValues(): void {
         $cf = new ConfigFile(__DIR__ . DIRECTORY_SEPARATOR . 'test1.conf');
+        $cf->preload(
+            [
+                "non-var"   => "doesn't exist",
+                "var1"      => "get's overridden"
+            ]
+        );
         $cf->load();
+        $this->assertEquals(    "doesn't exist",                            $cf->get("non-var"));
         $this->assertNull(      $cf->get('badvar1'));
         $this->assertNull(      $cf->get('badvar2'));
         $this->assertEquals(    'default val',                              $cf->get('invalid.var', 'default val'));

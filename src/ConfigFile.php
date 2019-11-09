@@ -160,6 +160,7 @@ class ConfigFile {
         $this->sCurrentScope = "";
 
         $this->aErrors = array();
+        $this->aPreloaded = array();    // value keys marked as being preloaded
         $this->aValues = array();
 
         # Parse sFileToOpen
@@ -245,6 +246,7 @@ class ConfigFile {
     public function preload($aDefaults) {
         foreach($aDefaults as $sName=>$mValue) {
             if (!array_key_exists($sName,$this->aValues)) {
+                $this->aPreloaded[$sName] = true;
                 $this->aValues[$sName] = array();
                 if (is_array($mValue)) {
                     $this->aValues[$sName] = $mValue;
@@ -611,8 +613,12 @@ class ConfigFile {
             $sVarName = $this->getVariableName($sLine, $iLineNum);
             if ($sVarName !== false) {
                 $sAdjustedName = $this->sCurrentScope . ($this->sCurrentScope === "" ? "" : $this->sScopeDelimiter) . $sVarName;
-                # initialize variable name array if doesn't exist
-                if (!array_key_exists($sAdjustedName, $this->aValues)) { $this->aValues[$sAdjustedName] = array(); }
+                # initialize variable name array if doesn't exist (or if it was a preloaded value)
+                if (!array_key_exists($sAdjustedName, $this->aValues) || array_key_exists($sAdjustedName, $this->aPreloaded)) {
+                    $this->aValues[$sAdjustedName] = array();
+                    # unmark key as preloaded, if it was set
+                    unset($this->aPreloaded[$sAdjustedName]);
+                }
                 # append value to values array
                 $this->aValues[$sAdjustedName][] = $this->getVariableValue($sLine, $iLineNum);
             }
