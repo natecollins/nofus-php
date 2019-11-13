@@ -160,6 +160,16 @@ class Logger implements LoggingInterface {
         }
     }
 
+    /**
+     * Check if logging is enabled for a given log level
+     * @param int iLogLevel The level to check
+     * @return bool|null True if logging is enabled for level, or null if iLogLevel is not defined
+     */
+    static public function isEnabled($iLogLevel) {
+        if (!isset(self::$oLogger->iLogLevel)) { return null; }
+        return ((self::$oLogger->iLogLevel & $iLogLevel) !== self::LOG_NONE);
+    }
+
     static public function critical($sEntry) {
         self::processLog($sEntry, self::LOG_CRITICAL);
     }

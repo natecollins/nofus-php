@@ -46,8 +46,12 @@ final class LoggerTest extends TestCase {
         Logger::error("Error!");
         Logger::critical("Critical!");
 
+        $this->assertTrue(Logger::isEnabled(Logger::LOG_WARNING));
+        $this->assertFalse(Logger::isEnabled(Logger::LOG_TRACE));
+
         Logger::disable();
         Logger::critical("Disabled logs.");
+        $this->assertNull(Logger::isEnabled(Logger::LOG_NOTICE));
 
         $sValidLog = "[TS] [DEBUG] Debug!\n" .
                      "[TS] [INFO] Info!\n" .
