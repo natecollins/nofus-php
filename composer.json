@@ -1,10 +1,12 @@
 {
     "name": "natecollins/nofus",
+    "description": "Nate's One-File Utilities Stash: Simple Single-use Classes for Common Tasks",
     "license": "BSD-2-Clause",
     "authors": [
         {
-            "name": "Nathan Collins",
-            "email": "npcollins-gmail-com@example.com"
+            "name": "Nate Collins",
+            "email": "npcollins@gmail.com",
+            "homepage": "https://github.com/natecollins"
         }
     ],
     "require": {},
