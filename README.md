@@ -17,6 +17,11 @@ The recommended method of installation is to use [Composer](https://getcomposer.
 if all you need is a specific file, it can be downloaded independently and will work without any
 of the other files present.  
 
+To install via composer:  
+```
+composer require natecollins/nofus
+```
+
 
 configfile.php
 -----------------------
