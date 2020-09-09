@@ -196,6 +196,15 @@ A class to handle MySQL/MariaDB compatible database connections. Features includ
   - Safe escaping of user supplied table and column names
   - Single SQL connection shared among all instances
 
+**Dependencies**  
+ - PDO
+ - MySQL
+
+On Ubuntu, this can be installed via:  
+```
+apt install php-pdo-mysql
+```
+
 **Establishing a Connection**
 Establishing a connection to SQL server requires an array object to be passed. This array must
 contain at least one set of server authentication parameters, including `host`, `username`,

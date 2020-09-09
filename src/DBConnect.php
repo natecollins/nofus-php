@@ -32,22 +32,22 @@ or implied, of Nathan Collins.
 /* Example database authentication for mirrored server setup */
 /*
 function dbauth() {
-        $SERVERS = array(
-                array(
-                        'host'=>'primarymysql.example.com',
-                        'username'=>'my_user',
-                        'password'=>'my_pw',
-                        'database'=>'my_db',
-                        'port'=>3306            # optional, defaults to 3306
-                ),
-                array(
-                        'host'=>'secondarymysql.example.com',
-                        'username'=>'my_user',
-                        'password'=>'my_pw',
-                        'database'=>'my_db'
-                )
-        );
-        return $SERVERS;
+    $SERVERS = array(
+        array(
+            'host'=>'primarymysql.example.com',
+            'username'=>'my_user',
+            'password'=>'my_pw',
+            'database'=>'my_db',
+            'port'=>3306            # optional, defaults to 3306
+        ),
+        array(
+            'host'=>'secondarymysql.example.com',
+            'username'=>'my_user',
+            'password'=>'my_pw',
+            'database'=>'my_db'
+        )
+    );
+    return $SERVERS;
 }
 */
 
@@ -117,9 +117,9 @@ class DBConnect {
         $this->aPDOAttrs = array();
 
         # defeault PDO attributes
-        $this->setPDOAttribute(PDO::ATTR_EMULATE_PREPARES, false);
-        $this->setPDOAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-        $this->setPDOAttribute(PDO::MYSQL_ATTR_INIT_COMMAND, "SET NAMES utf8mb4");
+        $this->setPDOAttribute(\PDO::ATTR_EMULATE_PREPARES, false);
+        $this->setPDOAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+        $this->setPDOAttribute(\PDO::MYSQL_ATTR_INIT_COMMAND, "SET NAMES utf8mb4");
 
         # psudeo verify connection info (vars exist, not empty)
         if (is_array($conn_info)) {
@@ -181,11 +181,11 @@ class DBConnect {
         if ($this->connectionExists()) {
             if ($silent == false) {
                 /* Throw exceptions on SQL error */
-                $this->setPDOAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+                $this->setPDOAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
             }
             else {
                 /* No exceptions thrown */
-                $this->setPDOAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_SILENT);
+                $this->setPDOAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_SILENT);
             }
         }
     }
@@ -233,12 +233,12 @@ class DBConnect {
     }
 
     /**
-     * DEPRECATED: Use setPDOAttribute(PDO::ATTR_PERSISTENT, true|false) instead
+     * DEPRECATED: Use setPDOAttribute(\PDO::ATTR_PERSISTENT, true|false) instead
      * Set connection peristance; if persistance is changed, then recreate the database connection
      * @param boolean bPersistent If true, the connnection will be persistent; otherwise it will not be
      */
     public function setPersistentConnection($bPersistent=false) {
-        $this->setPDOAttribute(PDO::ATTR_PERSISTENT, $bPersistent);
+        $this->setPDOAttribute(\PDO::ATTR_PERSISTENT, $bPersistent);
     }
 
     /**
@@ -266,13 +266,13 @@ class DBConnect {
             for ($i = 0, $n = count($this->aServers); $i < $n; $i++) {
                 $aServer = $this->aServers[$i];
                 try {
-                    $cInst = new PDO(
+                    $cInst = new \PDO(
                                 "mysql:host={$aServer['host']};dbname={$aServer['database']};port={$aServer['port']}",
                                 $aServer['username'], $aServer['password'], $this->aPDOAttrs
                             );
                 }
                 /* Shut down all the execptions while on the connection level! */
-                catch (Exception $e) {
+                catch (\Exception $e) {
                     continue;    // connection failed; but we'll keep trying until we run out of servers
                 }
                 $this->iServerIndex = $i;
@@ -461,7 +461,7 @@ class DBConnect {
      * @param boolean bRecordQuery If false, will not place query into query log (hides extra query calls internal to DBConnect)
      * @return array|int|null|false An array of rows for SELECT; primary key for INSERT (NULL is none returned); number of rows affected for UPDATE/DELETE/REPLACE. If a SQL error occurs, an Exception is thrown and false is returned.
      */
-    public function query($mQuery, $aValues=array(), $iFetchStyle=PDO::FETCH_ASSOC, $vFetchArg=null, $bFetchAll=true, $bRecordQuery=true) {
+    public function query($mQuery, $aValues=array(), $iFetchStyle=\PDO::FETCH_ASSOC, $vFetchArg=null, $bFetchAll=true, $bRecordQuery=true) {
         $this->iQueryCount += 1;
 
         // If value was passed directly (for single value queries), place it into an array
@@ -489,7 +489,7 @@ class DBConnect {
         }
 
         # Check if we recieved a prepared PDOStatement
-        if ( is_array($mQuery) && count($mQuery) == 3 && $mQuery[0] instanceof PDOStatement ) {
+        if ( is_array($mQuery) && count($mQuery) == 3 && $mQuery[0] instanceof \PDOStatement ) {
             # We use this as our statement
             $this->cStatement = $mQuery[0];
             $bIsInsert = $mQuery[1];
@@ -516,7 +516,7 @@ class DBConnect {
                 }
             }
         }
-        catch (PDOException $e) {
+        catch (\PDOException $e) {
             $this->rollbackTransaction();
             $this->recordQuery($this->cStatement);
             $this->triggerErrorDump("Error: Query execute failed.");
@@ -593,7 +593,7 @@ class DBConnect {
             # prepare query
             $oStatement = $this->cInstance->prepare($sQuery);
         }
-        catch (PDOException $e) {
+        catch (\PDOException $e) {
             $sExceptMsg = $e->getMessage();
             if (strpos($sExceptMsg, 'has gone away') !== false) {
                 if ($iReconnectAttempts > 0) {
@@ -630,7 +630,7 @@ class DBConnect {
      * @param array aValues Array of values to be escaped and inserted into the query
      */
     public function queryLoop($sQuery, $aValues=array()) {
-        $this->query($sQuery, $aValues, PDO::FETCH_ASSOC, null, false);
+        $this->query($sQuery, $aValues, \PDO::FETCH_ASSOC, null, false);
     }
 
     /**
@@ -639,7 +639,7 @@ class DBConnect {
      * is returned. See queryLoop() for example.
      * @return array|false A row from the query as an array, or boolean false if no more rows are left.
      */
-    public function queryNext($iFetchStyle=PDO::FETCH_ASSOC) {
+    public function queryNext($iFetchStyle=\PDO::FETCH_ASSOC) {
         return $this->cStatement->fetch($iFetchStyle);
     }
 
@@ -651,7 +651,7 @@ class DBConnect {
      * @param int iFetchStyle The PDO fetch style to query using
      * @return array|null The first row of the results of the query; or null if no rows found
      */
-    public function queryRow($sQuery, $aValues=array(), $iFetchStyle=PDO::FETCH_ASSOC) {
+    public function queryRow($sQuery, $aValues=array(), $iFetchStyle=\PDO::FETCH_ASSOC) {
         $aArray = $this->query($sQuery,$aValues,$iFetchStyle);
         $aRow = null;
         if ( is_array($aArray) && count($aArray) > 0 ) {
@@ -668,7 +668,7 @@ class DBConnect {
      * @param int iColumnNum What column to retrieve (0 based column index)
      */
     public function queryColumn($sQuery, $aValues=array(), $iColumnNum=0) {
-        return $this->query($sQuery,$aValues,PDO::FETCH_COLUMN,$iColumnNum);
+        return $this->query($sQuery,$aValues,\PDO::FETCH_COLUMN,$iColumnNum);
     }
 
     /**
@@ -742,7 +742,7 @@ class DBConnect {
         $sSafeField = $this->escapeIdentifier($sField, false);
         $sQuery = "SHOW COLUMNS FROM {$sSafeTable} LIKE '{$sSafeField}'";
 
-        $aRows = $this->query($sQuery,array(),PDO::FETCH_NUM,null,true,false);
+        $aRows = $this->query($sQuery,array(),\PDO::FETCH_NUM,null,true,false);
         $aRow = array_shift($aRows);
 
         preg_match_all('/\'(.*?)\'/', $aRow[1], $aMatchEnums);
@@ -762,7 +762,7 @@ class DBConnect {
         static $aTables = array();
         /* Only run the query to get table names the first time; additional calls will just use the static variable */
         if (count($aTables) == 0) {
-            $aRows = $this->query("SHOW TABLES",array(),PDO::FETCH_NUM,null,true,false);
+            $aRows = $this->query("SHOW TABLES",array(),\PDO::FETCH_NUM,null,true,false);
             foreach ($aRows as $aRow) {
                 $aTables[] = $aRow[0];
             }
@@ -814,7 +814,7 @@ class DBConnect {
         $sQuery     .= "
                     ORDER BY ordinal_position ASC";
 
-        $aRows = $this->query($sQuery,$aValues,PDO::FETCH_ASSOC,null,true,false);
+        $aRows = $this->query($sQuery,$aValues,\PDO::FETCH_ASSOC,null,true,false);
 
         $aCols = array();
         foreach ($aRows as $aRow) {
@@ -842,11 +842,11 @@ class DBConnect {
         if ($this->bTransaction == false) {
             if ($bReadCommitted === true) {
                 $sQuery = "SET TRANSACTION ISOLATION LEVEL READ COMMITTED";
-                $this->query($sQuery,array(),PDO::FETCH_ASSOC,null,true,false);
+                $this->query($sQuery,array(),\PDO::FETCH_ASSOC,null,true,false);
             }
             else if ($bReadCommitted === false) {
                 $sQuery = "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ";
-                $this->query($sQuery,array(),PDO::FETCH_ASSOC,null,true,false);
+                $this->query($sQuery,array(),\PDO::FETCH_ASSOC,null,true,false);
             }
             $this->cInstance->beginTransaction();
             $this->bTransaction = true;
@@ -908,11 +908,11 @@ class DBConnect {
         $this->sErrMessage = $sMsg;
         if ($this->bDebug) {
             $this->getErrorInfo($bDump);
-            throw new Exception($this->sErrMessage);
+            throw new \Exception($this->sErrMessage);
         }
         else {
             // The non-debug message
-            throw new Exception("A database error has occurred");
+            throw new \Exception("A database error has occurred");
         }
     }
 
