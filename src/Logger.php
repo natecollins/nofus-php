@@ -88,7 +88,9 @@ class Logger implements LoggingInterface {
     const LOG_LOW       = 0x00000003;   # CRITICAL & HIGH
     const LOG_MED       = 0x0000000F;   # LOW + WARNING & NOTICE
     const LOG_HIGH      = 0x0000003F;   # MED + INFO & DEBUG
-    const LOG_ALL       = 0xFFFFFFFF;
+    const LOG_ALL       = 0x0000FFFF;
+
+    const LOG_RAW       = 0x80000000;   # Raw log message; e.g. remove log prefixes
 
     // Instance of class implementing LoggingInterface
     static private $oLogger = null;
@@ -130,7 +132,7 @@ class Logger implements LoggingInterface {
     }
 
     public function makeLog($sEntry, $iLogLevel) {
-        if (($this->iLogLevel & $iLogLevel) !== self::LOG_NONE) {
+        if (($this->iLogLevel & $iLogLevel & self::LOG_ALL) !== self::LOG_NONE) {
             $sTimestamp = date("Y-m-d H:i:s");
             $sLevel = 'CUSTOM';
             if ($iLogLevel == self::LOG_CRITICAL) { $sLevel = 'CRITICAL'; }
@@ -141,7 +143,9 @@ class Logger implements LoggingInterface {
             elseif ($iLogLevel == self::LOG_DEBUG) { $sLevel = 'DEBUG'; }
             elseif ($iLogLevel == self::LOG_TRACE) { $sLevel = 'TRACE'; }
 
-            $sEntry = "[{$sTimestamp}] [{$sLevel}] {$sEntry}" . PHP_EOL;
+            $bRawline = boolval($iLogLevel & self::LOG_RAW);
+            $sEntry = ($bRawline ? "" : "[{$sTimestamp}] [{$sLevel}] ")
+                      . "{$sEntry}" . PHP_EOL;
             if (!file_put_contents($this->sLogFile, $sEntry, FILE_APPEND | LOCK_EX)) {
                 trigger_error("Logger failure. Could not write to log file.", E_USER_ERROR);
                 exit(1);
@@ -149,13 +153,16 @@ class Logger implements LoggingInterface {
         }
     }
 
-    static public function processLog($sEntry, $iLogLevel) {
+    static public function processLog($sEntry, $iLogLevel, $oExc=null) {
         if (self::$oLogger === null) {
             trigger_error("Logger failure. Logger not initialized.", E_USER_ERROR);
             exit(1);
         }
         // Skip if logging is disabled
         elseif (self::$oLogger !== false) {
+            if ($oExc !== null) {
+                $sEntry .= PHP_EOL . $oExc;
+            }
             self::$oLogger->makeLog($sEntry, $iLogLevel);
         }
     }
@@ -170,32 +177,32 @@ class Logger implements LoggingInterface {
         return ((self::$oLogger->iLogLevel & $iLogLevel) !== self::LOG_NONE);
     }
 
-    static public function critical($sEntry) {
-        self::processLog($sEntry, self::LOG_CRITICAL);
+    static public function critical($sEntry, $oExc=null) {
+        self::processLog($sEntry, self::LOG_CRITICAL, $oExc);
     }
 
-    static public function error($sEntry) {
-        self::processLog($sEntry, self::LOG_ERROR);
+    static public function error($sEntry, $oExc=null) {
+        self::processLog($sEntry, self::LOG_ERROR, $oExc);
     }
 
-    static public function warning($sEntry) {
-        self::processLog($sEntry, self::LOG_WARNING);
+    static public function warning($sEntry, $oExc=null) {
+        self::processLog($sEntry, self::LOG_WARNING, $oExc);
     }
 
-    static public function notice($sEntry) {
-        self::processLog($sEntry, self::LOG_NOTICE);
+    static public function notice($sEntry, $oExc=null) {
+        self::processLog($sEntry, self::LOG_NOTICE, $oExc);
     }
 
-    static public function info($sEntry) {
-        self::processLog($sEntry, self::LOG_INFO);
+    static public function info($sEntry, $oExc=null) {
+        self::processLog($sEntry, self::LOG_INFO, $oExc);
     }
 
-    static public function debug($sEntry) {
-        self::processLog($sEntry, self::LOG_DEBUG);
+    static public function debug($sEntry, $oExc=null) {
+        self::processLog($sEntry, self::LOG_DEBUG, $oExc);
     }
 
-    static public function trace($sEntry) {
-        self::processLog($sEntry, self::LOG_TRACE);
+    static public function trace($sEntry, $oExc=null) {
+        self::processLog($sEntry, self::LOG_TRACE, $oExc);
     }
 }
 

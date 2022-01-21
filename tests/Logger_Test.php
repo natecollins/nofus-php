@@ -45,6 +45,12 @@ final class LoggerTest extends TestCase {
         Logger::warning("Warning!");
         Logger::error("Error!");
         Logger::critical("Critical!");
+        try {
+            throw new Exception("Bad Val");
+        }
+        catch (Exception $exc) {
+            Logger::info("Uh oh", $exc);
+        }
 
         $this->assertTrue(Logger::isEnabled(Logger::LOG_WARNING));
         $this->assertFalse(Logger::isEnabled(Logger::LOG_TRACE));
@@ -58,13 +64,15 @@ final class LoggerTest extends TestCase {
                      "[TS] [NOTICE] Notice!\n" .
                      "[TS] [WARNING] Warning!\n" .
                      "[TS] [ERROR] Error!\n" .
-                     "[TS] [CRITICAL] Critical!\n";
+                     "[TS] [CRITICAL] Critical!\n" .
+                     "[TS] [INFO] Uh oh\n" .
+                    "Exception: Bad Val";
 
         $sLogContent = file_get_contents($sLogFile);
         $sLogContent = preg_replace('/^\[[^[]+\]/',"[TS]", $sLogContent);
         $sLogContent = preg_replace('/\n\[[^[]+\]/',"\n[TS]", $sLogContent);
         $this->assertNotNull($sLogContent);
-        $this->assertEquals($sValidLog, $sLogContent);
+        $this->assertStringStartsWith($sValidLog, $sLogContent);
 
         unlink($sLogFile);
     }
