@@ -182,6 +182,14 @@ Logger::notice("Notice!");
 Logger::warning("Warning!");
 Logger::error("Error!");
 Logger::critical("Critical!");
+
+# Log entry which includes an exception stack trace
+try {
+    intdiv(1, 0);
+}
+catch (DivisionByZeroError $exc) {
+    Logger::info("Caught something.", $exc);
+}
 ```
 
 
