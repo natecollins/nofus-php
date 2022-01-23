@@ -56,8 +56,17 @@ namespace Nofus;
 if (!defined('__NOFUS_DBCONNECT_GUARD__')) {
     define('__NOFUS_DBCONNECT_GUARD__',true);
 
+class DBException extends \Exception {
+    public function __construct($message, $code = 0, Throwable $previous = null) {
+        parent::__construct($message, $code, $previous);
+    }
+    public function __toString() {
+        return __CLASS__ . ": {$this->message}" . PHP_EOL;
+    }
+}
+
 /**
- *  A wrapper class for MySQL PDO connections.
+ *  A wrapper class for MariaDB/MySQL PDO connections.
  *  Provides:
  *      Seamless failover between multiple servers.
  *      Easy utility functions for identifying table columns and enum values.
@@ -80,12 +89,14 @@ class DBConnect {
     private $bDebug;           // Enabled detailed debug info display
     private $bAutoDump;        // When enabled, will auto dump error information to the output stream
     private $sErrMessage;      // The error message if an exception is thrown
+    private $bExceptions;      // Whether exceptions should be thrown or suppressed
+    private $bStdErr;          // Whether errors should be written to STDERR
     private $aPDOAttrs;        // PDO Attributes to set when creating connections
 
     /**
-     * Constructor requires valid MySQL connection server(s) in an array.
+     * Constructor requires valid MariaDB/MySQL connection server(s) in an array.
      *   Example:
-     *     $conn_info = array(
+     *     $aConnInfo = array(
      *           array(
      *                   'host'=>'primarymysql.example.com',
      *                   'username'=>'my_user',
@@ -101,9 +112,10 @@ class DBConnect {
      *           )
      *     );
      *
-     * @param array conn_info An array containing a list of servers' connection information
+     * @param array aConnInfo An array containing a list of servers' connection information
+     * @param bool bDebug Flag to set debug mode
      */
-    function __construct($conn_info, $bLoadBalance=false) {
+    function __construct($aConnInfo, $bDebug=false) {
         $this->aServers = array();
         $this->iServerIndex = null;
         $this->iQueryCount = 0;
@@ -111,9 +123,11 @@ class DBConnect {
         $this->bTransaction = false;
         $this->cInstance = null;
         $this->cStatement = null;
-        $this->bDebug = false;
+        $this->bDebug = $bDebug;
         $this->bAutoDump = false;
         $this->sErrMessage = null;
+        $this->bExceptions = true;
+        $this->bStdErr = true;
         $this->aPDOAttrs = array();
 
         # defeault PDO attributes
@@ -121,9 +135,14 @@ class DBConnect {
         $this->setPDOAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
         $this->setPDOAttribute(\PDO::MYSQL_ATTR_INIT_COMMAND, "SET NAMES utf8mb4");
 
+        # detect single server and wrap it
+        if (is_array($aConnInfo) && array_key_exists('host', $aConnInfo)) {
+            $aConnInfo = array($aConnInfo);
+        }
+
         # psudeo verify connection info (vars exist, not empty)
-        if (is_array($conn_info)) {
-            foreach ($conn_info as $conn) {
+        if (is_array($aConnInfo)) {
+            foreach ($aConnInfo as $conn) {
                 $aServ = array('port'=>3306);
                 foreach (array('host','username','password','database') as $at) {
                     if (isset($conn[$at]) && trim($conn[$at]) != '') { $aServ[$at] = $conn[$at]; }
@@ -134,8 +153,9 @@ class DBConnect {
                 if (count($aServ) == 5) $this->aServers[] = $aServ;
             }
         }
-
-        if ($bLoadBalance) { $this->loadBalance(); }
+        if (count($this->aServers) < 1) {
+            return $this->triggerError("No DB valid server authentication provided.");
+        }
     }
 
     /**
@@ -174,19 +194,20 @@ class DBConnect {
     }
 
     /**
-     * Set whether or not errors should throw exceptions when a MySQL error occurs
-     * @param boolean silent Do not show exceptions if set to true; does throw exceptions if set to false
+     * Set whether or not errors should throw exceptions or write to STDERR when an error occurs
+     * @param boolean bExceptions Will throw exceptions if set to true
+     * @param boolean bStdErr Will write errors to STDERR if set to true
      */
-    public function silentErrors($silent=true) {
-        if ($this->connectionExists()) {
-            if ($silent == false) {
-                /* Throw exceptions on SQL error */
-                $this->setPDOAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
-            }
-            else {
-                /* No exceptions thrown */
-                $this->setPDOAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_SILENT);
-            }
+    public function handleErrorsWith($bExceptions=true, $bStdErr=true) {
+        $this->bExceptions = $bExceptions;
+        $this->bStdErr = $bStdErr;
+        if ($this->bExceptions == true) {
+            /* Throw exceptions on SQL error */
+            $this->setPDOAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+        }
+        else {
+            /* No exceptions thrown */
+            $this->setPDOAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_SILENT);
         }
     }
 
@@ -234,7 +255,7 @@ class DBConnect {
 
     /**
      * DEPRECATED: Use setPDOAttribute(\PDO::ATTR_PERSISTENT, true|false) instead
-     * Set connection peristance; if persistance is changed, then recreate the database connection
+     * Set connection peristance
      * @param boolean bPersistent If true, the connnection will be persistent; otherwise it will not be
      */
     public function setPersistentConnection($bPersistent=false) {
@@ -251,7 +272,7 @@ class DBConnect {
     }
 
     /**
-     * Create a PDO connection to a MySQL server
+     * Create a PDO connection to a MariaDB/MySQL server
      *
      * @param boolean bReinitialize If set to true, then any curent connection is terminated and a new one is created
      * @return boolean If there is a valid connection or one was created, return true; false otherwise.
@@ -267,9 +288,9 @@ class DBConnect {
                 $aServer = $this->aServers[$i];
                 try {
                     $cInst = new \PDO(
-                                "mysql:host={$aServer['host']};dbname={$aServer['database']};port={$aServer['port']}",
-                                $aServer['username'], $aServer['password'], $this->aPDOAttrs
-                            );
+                        "mysql:host={$aServer['host']};dbname={$aServer['database']};port={$aServer['port']}",
+                        $aServer['username'], $aServer['password'], $this->aPDOAttrs
+                    );
                 }
                 /* Shut down all the execptions while on the connection level! */
                 catch (\Exception $e) {
@@ -282,7 +303,7 @@ class DBConnect {
                 return true;
             }
             /* Could not create a connection */
-            return false;
+            return $this->triggerError("Unable to connect to database.");
         }
         /* Connection already exists */
         return true;
@@ -314,7 +335,6 @@ class DBConnect {
         if (!$this->create()) return '';
         return $this->aServers[$this->iServerIndex]['database'];
     }
-
 
     /**
      * Emulate safe-quoting variables to make them safe (actual query uses prepared statements)
@@ -392,7 +412,7 @@ class DBConnect {
             if (is_array($value)) {
                 // We can't have an empty array
                 if (count($value) == 0) {
-                    $this->triggerError("Error: Cannot pass empty array to value placeholder #{$iPlaceholderLoc} ({$key}) in query: {$sQuery}");
+                    return $this->triggerError("Cannot pass empty array to value placeholder #{$iPlaceholderLoc} ({$key}) in query: {$sQuery}");
                 }
                 $sQuery = $this->expandValueLocation($sQuery,$iPlaceholderLoc+1,count($value));
                 // Adding more placeholders shifts the current placeholder location
@@ -496,8 +516,7 @@ class DBConnect {
             $bIsUpdateDelete = $mQuery[2];
         }
         else {
-            $this->triggerError("Error: Method query() does not have a valid prepared statement to execute against.");
-            return false;
+            return $this->triggerError("Error: Method query() does not have a valid prepared statement to execute against.");
         }
 
         # run query
@@ -519,8 +538,7 @@ class DBConnect {
         catch (\PDOException $e) {
             $this->rollbackTransaction();
             $this->recordQuery($this->cStatement);
-            $this->triggerErrorDump("Error: Query execute failed.");
-            return false;
+            return $this->triggerErrorDump("Error: Query execute failed.");
         }
         if ($bRecordQuery) {
             $this->recordQuery($this->cStatement);
@@ -583,11 +601,7 @@ class DBConnect {
         $bIsUpdateDelete = preg_match('/^\s*(UPDATE|REPLACE|DELETE)/i',$sQuery);
 
         # create connection if one doesn't exist
-        if ( !$this->create() ) {
-            $this->triggerError("Error: Could not establish connection to server.");
-            return false;
-        }
-
+        if (!$this->create()) return false;
         # catch timed out connections and attempt to reconnect
         try {
             # prepare query
@@ -601,19 +615,16 @@ class DBConnect {
                     return $this->prepare($sQuery, $iReconnectAttempts - 1);
                 }
                 else {
-                    $this->triggerError("Error: Lost connection to SQL server and could not re-connect.");
-                    return false;
+                    return $this->triggerError("Lost connection to SQL server and could not re-connect.");
                 }
             }
         }
         if ($oStatement == false) {
-            $this->triggerErrorDump("Error: SQL could not prepare query; it is not valid or references something non-existant.".PHP_EOL.PHP_EOL.$sQuery);
-            return false;
+            return $this->triggerErrorDump("SQL could not prepare query; it is not valid or references something non-existant." . PHP_EOL . $sQuery);
         }
 
         return array($oStatement,$bIsInsert,$bIsUpdateDelete);
     }
-
 
     /**
      * Executes a SELECT query for use with queryNext(). Does not return any query data; all rows are to be
@@ -832,7 +843,7 @@ class DBConnect {
      *
      * @param boolean|null bReadCommitted If set to true, sets transaction isolation to "READ COMMITTED";
      *                                     if false, sets it to "REPEATABLE READ"; if left null, no transaction
-     *                                     level is set (MySQL default is "REPEATABLE READ").
+     *                                     level is set (MariaDB/MySQL default is "REPEATABLE READ").
      */
     public function startTransaction($bReadCommitted=null) {
         $this->sErrMessage = null;
@@ -906,21 +917,28 @@ class DBConnect {
      */
     private function triggerError($sMsg, $bDump=false) {
         $this->sErrMessage = $sMsg;
-        if ($this->bDebug) {
-            $this->getErrorInfo($bDump);
-            throw new \Exception($this->sErrMessage);
+        if ($this->bStdErr) {
+            fwrite(STDERR, $sMsg . PHP_EOL);
         }
-        else {
-            // The non-debug message
-            throw new \Exception("A database error has occurred");
+        if ($this->bExceptions) {
+            if ($this->bDebug) {
+                // Trigger dump if enabled
+                $this->getErrorInfo($bDump);
+                throw new DBException($this->sErrMessage);
+            }
+            else {
+                // The non-debug message
+                throw new DBException("A database error has occurred.");
+            }
         }
+        return false;
     }
 
     /**
      * Trigger error with dump of query information if autodump is enabled
      */
     private function triggerErrorDump($sMsg) {
-        $this->triggerError($sMsg, true);
+        return $this->triggerError($sMsg, true);
     }
 
     /**
