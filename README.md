@@ -5,10 +5,10 @@ straightforward use. Each class can be taken and used individually and requires
 no external dependencies.  
 
 **Classes**  
-* [configfile.php](#configfilephp) - Easy parser for config files
-* [logger.php](#loggerphp) - Simple logger class with built-in file logging implementation
-* [dbconnect.php](#dbconnectphp) - Quick, safe interface for making MySQL/MariaDB queries
-* [userdata.php](#userdataphp) - Simple validator for user data
+* [ConfigFile.php](#configfilephp) - Easy parser for config files
+* [Logger.php](#loggerphp) - Simple logger class with built-in file logging implementation
+* [DBConnect.php](#dbconnectphp) - Quick, safe interface for making MySQL/MariaDB queries
+* [UserData.php](#userdataphp) - Simple validator for user data
 
 
 Installation
@@ -23,7 +23,7 @@ composer require natecollins/nofus
 ```
 
 
-configfile.php
+ConfigFile.php
 -----------------------
 A class to read in plain text config files.  
   - Simple "variable = value" syntax
@@ -67,7 +67,7 @@ name = Chris
 
 **Examples:**
 ```php
-use Nofus\Configfile;
+use Nofus\ConfigFile;
 
 # Create config file object and attempt to load it
 $cf = new ConfigFile('app.conf');
@@ -153,7 +153,7 @@ $cf->load();
 ```
 
 
-logger.php
+Logger.php
 -----------------------
 A class to create logs, with a built-in simple file-logging implementation
   - Very simple to setup and use
@@ -193,7 +193,7 @@ catch (DivisionByZeroError $exc) {
 ```
 
 
-dbconnect.php
+DBConnect.php
 -----------------------
 A class to handle MySQL/MariaDB compatible database connections. Features include:  
   - Automatic failover between multiple servers
@@ -528,7 +528,7 @@ $count = $db->getQueryCount();
 ```
 
 
-userdata.php
+UserData.php
 -----------------------
 A class to access and validate user data types from GET, POST, COOKIE, and FILES.
   - Object based interface

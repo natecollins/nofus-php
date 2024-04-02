@@ -56,6 +56,8 @@ namespace Nofus;
 if (!defined('__NOFUS_DBCONNECT_GUARD__')) {
     define('__NOFUS_DBCONNECT_GUARD__',true);
 
+if(!defined('STDERR')) { define('STDERR', fopen('php://stderr', 'wb')); }
+
 class DBException extends \Exception {
     public function __construct($message, $code = 0, Throwable $previous = null) {
         parent::__construct($message, $code, $previous);
@@ -442,7 +444,10 @@ class DBConnect {
     private function recordQuery($cStatement) {
         static $exceed_msg = "LAST QUERY LOG DISABLED : Exceeded 64 MB limit.";
         if ($this->bDebug) {
-            if ($this->sLastQuery == $exceed_msg || strlen($this->sLastQuery) > 67108864) {
+            if (
+                $this->sLastQuery !== null &&
+                ($this->sLastQuery == $exceed_msg || strlen($this->sLastQuery) > 67108864)
+            ) {
                 $this->sLastQuery = $exceed_msg;
             }
             else {
