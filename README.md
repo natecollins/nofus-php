@@ -2,7 +2,7 @@
 ## About NOFUS
 A collection of single purpose classes for common tasks, focusing on simple and
 straightforward use. Each class can be taken and used individually and requires
-no external dependencies.  
+no external code dependencies.  
 
 **Classes**  
 * [ConfigFile.php](#configfilephp) - Easy parser for config files
@@ -204,7 +204,7 @@ A class to handle MySQL/MariaDB compatible database connections. Features includ
   - Safe escaping of user supplied table and column names
   - Single SQL connection shared among all instances
 
-**Dependencies**  
+**Required Libraries**  
  - PDO
  - MySQL
 
