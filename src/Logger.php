@@ -72,49 +72,57 @@ catch (DivisionByZeroError $exc) {
 
 namespace Nofus;
 
+use function boolval;
+use function dirname;
+use function in_array;
+
 /**
  * Interface required by Logger instance
  */
-interface LoggingInterface {
+interface LoggingInterface
+{
     public function makeLog($sEntry, $iLogLevel);
 }
 
 /**
  * Logger class and default file logging implementation
  */
-class Logger implements LoggingInterface {
-    const LOG_CRITICAL  = 0x00000001;
-    const LOG_ERROR     = 0x00000002;
-    const LOG_WARNING   = 0x00000004;
-    const LOG_NOTICE    = 0x00000008;
-    const LOG_INFO      = 0x00000010;
-    const LOG_DEBUG     = 0x00000020;
-    const LOG_TRACE     = 0x00000040;
+class Logger implements LoggingInterface
+{
+    public const LOG_CRITICAL = 0x00000001;
+    public const LOG_ERROR = 0x00000002;
+    public const LOG_WARNING = 0x00000004;
+    public const LOG_NOTICE = 0x00000008;
+    public const LOG_INFO = 0x00000010;
+    public const LOG_DEBUG = 0x00000020;
+    public const LOG_TRACE = 0x00000040;
 
-    const LOG_NONE      = 0x00000000;
-    const LOG_LOW       = 0x00000003;   # CRITICAL & HIGH
-    const LOG_MED       = 0x0000000F;   # LOW + WARNING & NOTICE
-    const LOG_HIGH      = 0x0000003F;   # MED + INFO & DEBUG
-    const LOG_ALL       = 0x0000FFFF;
+    public const LOG_NONE = 0x00000000;
+    public const LOG_LOW = 0x00000003;   # CRITICAL & HIGH
+    public const LOG_MED = 0x0000000F;   # LOW + WARNING & NOTICE
+    public const LOG_HIGH = 0x0000003F;   # MED + INFO & DEBUG
+    public const LOG_ALL = 0x0000FFFF;
 
-    const LOG_RAW       = 0x80000000;   # Raw log message; e.g. remove log prefixes
+    public const LOG_RAW = 0x80000000;   # Raw log message; e.g. remove log prefixes
 
     // Instance of class implementing LoggingInterface
-    static private $oLogger = null;
-
+    private static $oLogger = null;
     protected $sLogFile;
     protected $iLogLevel;
 
-    protected function __construct($sLogFile=null, $iLogLevel=self::LOG_HIGH) {
+    protected function __construct($sLogFile = null, $iLogLevel = self::LOG_HIGH)
+    {
         $this->sLogFile = $sLogFile;
         $this->iLogLevel = $iLogLevel;
     }
 
     /**
      * Register a custom logger instead of using the built-in one
+     *
      * @param object $oLogger An instance of a class that implements LoggingInterface
      */
-    static public function register($oLogger) {
+    public static function register($oLogger): void
+    {
         if (!in_array('Nofus\LoggingInterface', class_implements($oLogger))) {
             trigger_error("Logger failure. Can only register classes which implement LoggingInterface.", E_USER_ERROR);
             exit(1);
@@ -122,33 +130,43 @@ class Logger implements LoggingInterface {
         self::$oLogger = $oLogger;
     }
 
-    static public function disable() {
+    public static function disable(): void
+    {
         self::$oLogger = false;
     }
 
-    static public function initialize($sLogFile, $iLogLevel=self::LOG_HIGH) {
+    public static function initialize($sLogFile, $iLogLevel = self::LOG_HIGH): void
+    {
         $bFileWritable = is_file($sLogFile) && is_writable($sLogFile);
         $bCanCreateFile = !is_file($sLogFile) && is_writable(dirname($sLogFile));
         if ($bFileWritable || $bCanCreateFile) {
             self::$oLogger = new Logger($sLogFile, $iLogLevel);
-        }
-        else {
+        } else {
             trigger_error("Logger failure. Can not initialize; log file not writable.", E_USER_ERROR);
             exit(1);
         }
     }
 
-    public function makeLog($sEntry, $iLogLevel) {
+    public function makeLog($sEntry, $iLogLevel): void
+    {
         if (($this->iLogLevel & $iLogLevel & self::LOG_ALL) !== self::LOG_NONE) {
             $sTimestamp = date("Y-m-d H:i:s");
             $sLevel = 'CUSTOM';
-            if ($iLogLevel == self::LOG_CRITICAL) { $sLevel = 'CRITICAL'; }
-            elseif ($iLogLevel == self::LOG_ERROR) { $sLevel = 'ERROR'; }
-            elseif ($iLogLevel == self::LOG_WARNING) { $sLevel = 'WARNING'; }
-            elseif ($iLogLevel == self::LOG_NOTICE) { $sLevel = 'NOTICE'; }
-            elseif ($iLogLevel == self::LOG_INFO) { $sLevel = 'INFO'; }
-            elseif ($iLogLevel == self::LOG_DEBUG) { $sLevel = 'DEBUG'; }
-            elseif ($iLogLevel == self::LOG_TRACE) { $sLevel = 'TRACE'; }
+            if ($iLogLevel == self::LOG_CRITICAL) {
+                $sLevel = 'CRITICAL';
+            } elseif ($iLogLevel == self::LOG_ERROR) {
+                $sLevel = 'ERROR';
+            } elseif ($iLogLevel == self::LOG_WARNING) {
+                $sLevel = 'WARNING';
+            } elseif ($iLogLevel == self::LOG_NOTICE) {
+                $sLevel = 'NOTICE';
+            } elseif ($iLogLevel == self::LOG_INFO) {
+                $sLevel = 'INFO';
+            } elseif ($iLogLevel == self::LOG_DEBUG) {
+                $sLevel = 'DEBUG';
+            } elseif ($iLogLevel == self::LOG_TRACE) {
+                $sLevel = 'TRACE';
+            }
 
             $bRawline = boolval($iLogLevel & self::LOG_RAW);
             $sEntry = ($bRawline ? "" : "[{$sTimestamp}] [{$sLevel}] ")
@@ -160,7 +178,8 @@ class Logger implements LoggingInterface {
         }
     }
 
-    static public function processLog($sEntry, $iLogLevel, $oExc=null) {
+    public static function processLog($sEntry, $iLogLevel, $oExc = null): void
+    {
         if (self::$oLogger === null) {
             trigger_error("Logger failure. Logger not initialized.", E_USER_ERROR);
             exit(1);
@@ -176,39 +195,51 @@ class Logger implements LoggingInterface {
 
     /**
      * Check if logging is enabled for a given log level
+     *
      * @param int $iLogLevel The level to check
+     *
      * @return bool|null True if logging is enabled for level, or null if iLogLevel is not defined
      */
-    static public function isEnabled($iLogLevel) {
-        if (!isset(self::$oLogger->iLogLevel)) { return null; }
-        return ((self::$oLogger->iLogLevel & $iLogLevel) !== self::LOG_NONE);
+    public static function isEnabled($iLogLevel)
+    {
+        if (!isset(self::$oLogger->iLogLevel)) {
+            return null;
+        }
+        return (self::$oLogger->iLogLevel & $iLogLevel) !== self::LOG_NONE;
     }
 
-    static public function critical($sEntry, $oExc=null) {
+    public static function critical($sEntry, $oExc = null): void
+    {
         self::processLog($sEntry, self::LOG_CRITICAL, $oExc);
     }
 
-    static public function error($sEntry, $oExc=null) {
+    public static function error($sEntry, $oExc = null): void
+    {
         self::processLog($sEntry, self::LOG_ERROR, $oExc);
     }
 
-    static public function warning($sEntry, $oExc=null) {
+    public static function warning($sEntry, $oExc = null): void
+    {
         self::processLog($sEntry, self::LOG_WARNING, $oExc);
     }
 
-    static public function notice($sEntry, $oExc=null) {
+    public static function notice($sEntry, $oExc = null): void
+    {
         self::processLog($sEntry, self::LOG_NOTICE, $oExc);
     }
 
-    static public function info($sEntry, $oExc=null) {
+    public static function info($sEntry, $oExc = null): void
+    {
         self::processLog($sEntry, self::LOG_INFO, $oExc);
     }
 
-    static public function debug($sEntry, $oExc=null) {
+    public static function debug($sEntry, $oExc = null): void
+    {
         self::processLog($sEntry, self::LOG_DEBUG, $oExc);
     }
 
-    static public function trace($sEntry, $oExc=null) {
+    public static function trace($sEntry, $oExc = null): void
+    {
         self::processLog($sEntry, self::LOG_TRACE, $oExc);
     }
 }

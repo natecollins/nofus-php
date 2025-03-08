@@ -128,10 +128,17 @@ if ($cf->load()) {
 
 namespace Nofus;
 
+use function array_key_exists;
+use function count;
+use function is_array;
+use function is_string;
+use function strlen;
+
 /**
  * Handles parsing of config files.
  */
-class ConfigFile {
+class ConfigFile
+{
     // File Info
     private $sFilePath;
     private $bLoaded;
@@ -157,11 +164,12 @@ class ConfigFile {
     // Parsed content
     private $aValues;
 
-    function __construct($sFileToOpen=null) {
+    public function __construct($sFileToOpen = null)
+    {
         $this->sFilePath = null;
         $this->bLoaded = false;
 
-        $this->aLineCommentStart = array('#','//');
+        $this->aLineCommentStart = ['#','//'];
         $this->sVarValDelimiter = "=";
         $this->sScopeDelimiter = ".";
         $this->sQuoteChar = "\"";
@@ -171,9 +179,9 @@ class ConfigFile {
 
         $this->sCurrentScope = "";
 
-        $this->aErrors = array();
-        $this->aPreloaded = array();
-        $this->aValues = array();
+        $this->aErrors = [];
+        $this->aPreloaded = [];
+        $this->aValues = [];
 
         # Parse sFileToOpen
         if ($sFileToOpen != null && is_string($sFileToOpen)) {
@@ -184,12 +192,14 @@ class ConfigFile {
     /**
      * Change what strings indicate the start of a comment.
      * WARNING: Change this at your own risk. Setting unusual values here may break parsing.
+     *
      * @param array|string $mLineCommentStart An array containing strings which indicate the start of a comment
-     *                  OR a string that indicates the start of a comment
+     *                                        OR a string that indicates the start of a comment
      */
-    public function overrideCommentStarts($mLineCommentStart) {
+    public function overrideCommentStarts($mLineCommentStart): void
+    {
         if (!is_array($mLineCommentStart) && is_string($mLineCommentStart)) {
-            $mLineCommentStart = array($mLineCommentStart);
+            $mLineCommentStart = [$mLineCommentStart];
         }
         $this->aLineCommentStart = $mLineCommentStart;
     }
@@ -197,54 +207,67 @@ class ConfigFile {
     /**
      * Change the delimiter used between variable name and values.
      * WARNING: Change this at your own risk. Setting unusual values here may break parsing.
+     *
      * @param string $sVarValDelimiter The string to indicate the delimiter between variable name and value
      */
-    public function overrideVariableDelimiter($sVarValDelimiter) {
+    public function overrideVariableDelimiter($sVarValDelimiter): void
+    {
         $this->sVarValDelimiter = $sVarValDelimiter;
     }
 
     /**
      * Change the string used as a delimiter between scopes.
      * WARNING: Change this at your own risk. Setting unusual values here may break parsing.
+     *
      * @param string $sScopeDelimiter The string to indicate the delimiter between scopes
      */
-    public function overrideScopeDelimiter($sScopeDelimiter) {
+    public function overrideScopeDelimiter($sScopeDelimiter): void
+    {
         $this->sScopeDelimiter = $sScopeDelimiter;
     }
 
     /**
      * Change the character used to quote variable values.
      * WARNING: Change this at your own risk. Setting unusual values here may break parsing.
+     *
      * @param string $sQuoteChar The character to indicate the start and end of a quoted value
      */
-    public function overrideQuoteCharacter($sQuoteChar) {
+    public function overrideQuoteCharacter($sQuoteChar): void
+    {
         $this->sQuoteChar = $sQuoteChar;
     }
 
     /**
      * Change the character used to escape other characters in a variable value
      * WARNING: Change this at your own risk. Setting unusual values here may break parsing.
+     *
      * @param string $sEscapeChar The character to indicate an excaped character follows
      */
-    public function overrideEscapeCharacter($sEscapeChar) {
+    public function overrideEscapeCharacter($sEscapeChar): void
+    {
         $this->sEscapeChar = $sEscapeChar;
     }
 
     /**
      * Change the regular expression patterned used to verify valid scope names.
      * WARNING: Change this at your own risk. Setting unusual values here may break parsing.
+     *
      * @param string $sScopeCharSet A regexp patterns to indicate allowed characters in a scope name
      */
-    public function overrideScopeCharacters($sScopeCharSet) {
+    public function overrideScopeCharacters($sScopeCharSet): void
+    {
         $this->sScopeCharSet = $sScopeCharSet;
     }
 
     /**
      * Change the regular expression patterned used to verify valid variable names.
      * WARNING: Change this at your own risk. Setting unusual values here may break parsing.
-     * @param string $sScopeCharSet A regexp patterns to indicate allowed characters in a variable name
+     *
+     * @param string $sScopeCharSet   A regexp patterns to indicate allowed characters in a variable name
+     * @param mixed  $sVarNameCharSet
      */
-    public function overrideVariableNameCharacters($sVarNameCharSet) {
+    public function overrideVariableNameCharacters($sVarNameCharSet): void
+    {
         $this->sVarNameCharSet = $sVarNameCharSet;
     }
 
@@ -252,18 +275,19 @@ class ConfigFile {
      * Load in default values for certain variables/scopes. If a variable already
      * exists (e.g. from a file that was already loaded), then this will NOT overwrite
      * the value.
+     *
      * @param array $aDefaults An array of "scope.variable"=>"default value" pairs.
-     *                  OR array value may also be an array of values
+     *                         OR array value may also be an array of values
      */
-    public function preload($aDefaults) {
-        foreach($aDefaults as $sName=>$mValue) {
-            if (!array_key_exists($sName,$this->aValues)) {
+    public function preload($aDefaults): void
+    {
+        foreach ($aDefaults as $sName => $mValue) {
+            if (!array_key_exists($sName, $this->aValues)) {
                 $this->aPreloaded[$sName] = true;
-                $this->aValues[$sName] = array();
+                $this->aValues[$sName] = [];
                 if (is_array($mValue)) {
                     $this->aValues[$sName] = $mValue;
-                }
-                else {
+                } else {
                     $this->aValues[$sName][] = $mValue;
                 }
             }
@@ -273,17 +297,20 @@ class ConfigFile {
     /**
      * Reset the config file object, basically "unloading" everything so it can be reloaded.
      */
-    public function reset() {
+    public function reset(): void
+    {
         $this->bLoaded = false;
-        $this->aErrors = array();
-        $this->aValues = array();
+        $this->aErrors = [];
+        $this->aValues = [];
     }
 
     /**
      * Attempt to open and parse the config file.
+     *
      * @return boolean True if the file loaded without errors, false otherwise
      */
-    public function load() {
+    public function load()
+    {
         # If we've successfully loaded this file before, skip the load and return success
         if ($this->bLoaded == true) {
             return true;
@@ -322,11 +349,14 @@ class ConfigFile {
 
     /**
      * Find the position of the first line comment (ignoring all other rules)
-     * @param string $sLine The line to search over
-     * @param int $iSearchOffset Offset from start of line in characters to skip before searching
+     *
+     * @param string $sLine         The line to search over
+     * @param int    $iSearchOffset Offset from start of line in characters to skip before searching
+     *
      * @return int|false The position of line comment start, or false if no line comment was found
      */
-    private function findLineCommentPosition($sLine, $iSearchOffset=0) {
+    private function findLineCommentPosition($sLine, $iSearchOffset = 0)
+    {
         $iStart = false;
         foreach ($this->aLineCommentStart as $sCommentStart) {
             $iStartCheck = strpos($sLine, $sCommentStart, $iSearchOffset);
@@ -339,28 +369,37 @@ class ConfigFile {
 
     /**
      * Find the position of the first assignment delimiter (ignoring all other rules)
+     *
      * @param string $sLine The line to search over
+     *
      * @return int|false The position of the assignment delimiter, or false if no delimiter was found
      */
-    private function findAssignmentDelimiterPosition($sLine) {
+    private function findAssignmentDelimiterPosition($sLine)
+    {
         return strpos($sLine, $this->sVarValDelimiter);
     }
 
     /**
      * Find the position of the opening double quote character (ignoring all other rules)
+     *
      * @param string $sLine The line to search over
+     *
      * @return int|false The position of the double quote, or false is not found
      */
-    private function findOpenQuotePosition($sLine) {
+    private function findOpenQuotePosition($sLine)
+    {
         return strpos($sLine, $this->sQuoteChar);
     }
 
     /**
      * Given a line, check to see if it is a valid scope definition
+     *
      * @param string $sLine The line to check
+     *
      * @return boolean Returns true if well formed and valid, false otherwise
      */
-    private function isValidScopeDefinition($sLine) {
+    private function isValidScopeDefinition($sLine)
+    {
         $sValidCharSet = $this->sScopeCharSet;
         $sScopeChar = preg_quote($this->sScopeDelimiter, "/");
         $sEscCommentStarts = "";
@@ -385,9 +424,11 @@ class ConfigFile {
 
     /**
      * Set the current scope (assumes the line is a scope definition) while parsing the file. Does nothing if line is not a scope definition.
+     *
      * @param string $sLine The line to get the scope from
      */
-    private function setScope($sLine) {
+    private function setScope($sLine): void
+    {
         $sValidCharSet = $this->sScopeCharSet;
         $sScopeChar = preg_quote($this->sScopeDelimiter, "/");
         $sEscCommentStarts = "";
@@ -399,7 +440,7 @@ class ConfigFile {
         }
         $sScopePattern = (
             # ------------ NAME CHARS --------- SCOPE CHAR -
-            "/^\s*\[\s*([{$sValidCharSet}]+(?:{$sScopeChar}" . 
+            "/^\s*\[\s*([{$sValidCharSet}]+(?:{$sScopeChar}" .
             # - NAME CHARS ---------------------- ALLOW COMMENTS AFTER ---
             "[{$sValidCharSet}]+)*)?\s*\]\s*(?:({$sEscCommentStarts}).*)?$/"
         );
@@ -413,10 +454,13 @@ class ConfigFile {
     /**
      * Check if line has a value delimiter. Can only return true if the line
      * also has a valid variable name.
+     *
      * @param string $sLine The line to check against
+     *
      * @return boolean Returns true if line has a delimiter after a valid variable name
      */
-    private function hasValueDelimiter($sLine) {
+    private function hasValueDelimiter($sLine)
+    {
         $bHasDelim = false;
         if ($this->hasValidVariableName($sLine)) {
             $sEscDelim = preg_quote($this->sVarValDelimiter, '/');
@@ -431,11 +475,13 @@ class ConfigFile {
     /**
      * Checks if the line has a valid quoted value.
      *
-     * @param string $sLine The line to check
+     * @param string   $sLine         The line to check
      * @param int|null $iLineForError If a line number is provided, will add error messages if invalidly quoted
+     *
      * @return boolean Returns true if a quoted value exist, false otherwise
      */
-    private function hasQuotedValue($sLine, $iLineForError=null) {
+    private function hasQuotedValue($sLine, $iLineForError = null)
+    {
         $bQuotedValue = false;
         // #################################################
         // # - Variable name must be valid
@@ -452,7 +498,9 @@ class ConfigFile {
             $sEscEscape = preg_quote($this->sEscapeChar, '/');
             $sEscCommentStarts = "";
             foreach ($this->aLineCommentStart as $sCommentStart) {
-                if ($sEscCommentStarts != "") { $sEscCommentStarts .= "|"; }
+                if ($sEscCommentStarts != "") {
+                    $sEscCommentStarts .= "|";
+                }
                 $sEscCommentStarts .= preg_quote($sCommentStart, '/');
             }
             $sQuoteValPattern = (
@@ -471,10 +519,13 @@ class ConfigFile {
     /**
      * Returns the content from inside a properly quoted value string given a whole line.
      * The content from inside the string may still have escaped values.
+     *
      * @param string $sLine The line to operate from
+     *
      * @return string The value between the openening and closed quote of the value (does NOT include open/closing quotes); on failure, returns empty string.
      */
-    private function getQuotedValue($sLine) {
+    private function getQuotedValue($sLine)
+    {
         $sValue = "";
 
         if ($this->hasValidVariableName($sLine)) {
@@ -484,7 +535,9 @@ class ConfigFile {
             $sEscEscape = preg_quote($this->sEscapeChar, '/');
             $sEscCommentStarts = "";
             foreach ($this->aLineCommentStart as $sCommentStart) {
-                if ($sEscCommentStarts != "") { $sEscCommentStarts .= "|"; }
+                if ($sEscCommentStarts != "") {
+                    $sEscCommentStarts .= "|";
+                }
                 $sEscCommentStarts .= preg_quote($sCommentStart, '/');
             }
             $sQuoteValPattern = (
@@ -506,11 +559,14 @@ class ConfigFile {
 
     /**
      * Get the processed value for the given line. Handles quotes, comments, and unescaping characters.
-     * @param string $sLine The line to operate from
+     *
+     * @param string   $sLine         The line to operate from
      * @param int|null $iLineForError If a line number is provided, will add error messages if invalidly quoted
+     *
      * @return string The value processed variable value
      */
-    private function getVariableValue($sLine, $iLineForError=null) {
+    private function getVariableValue($sLine, $iLineForError = null)
+    {
         $mValue = false;
         if ($this->hasValidVariableName($sLine)) {
             $mValue = true;
@@ -519,8 +575,7 @@ class ConfigFile {
                 if ($this->hasQuotedValue($sLine, $iLineForError)) {
                     # getting the quoted value will strip off comments automatically
                     $mValue = $this->getQuotedValue($sLine);
-                }
-                else {
+                } else {
                     $mValue = $this->getPostDelimiter($sLine);
                     # handle comments
                     $iCommentStart = $this->findLineCommentPosition($mValue);
@@ -543,10 +598,13 @@ class ConfigFile {
      * Returns the trimmed string before any delimiter on a line.
      *  - Removes comments from line
      *  - If no delimiter is present, returns the whole line (minus any comment)
+     *
      * @param string $sLine The line to operate from
+     *
      * @return string The value before any delimiter
      */
-    private function getPreDelimiter($sLine) {
+    private function getPreDelimiter($sLine)
+    {
         $iAssignDelimPos = $this->findAssignmentDelimiterPosition($sLine);
         $iLineCommentPos = $this->findLineCommentPosition($sLine);
 
@@ -571,10 +629,13 @@ class ConfigFile {
      * Returns the trimmed string after any delimiter on a line.
      *  - If no delimiter is present (or if delimiter is commented out) returns empty string
      *  - Does NOT remove comments from post delimiter content
+     *
      * @param string $sLine The line to operate from
+     *
      * @return string The value after any delimiter
      */
-    private function getPostDelimiter($sLine) {
+    private function getPostDelimiter($sLine)
+    {
         $iAssignDelimPos = $this->findAssignmentDelimiterPosition($sLine);
         $iLineCommentPos = $this->findLineCommentPosition($sLine);
 
@@ -599,11 +660,14 @@ class ConfigFile {
 
     /**
      * Checks if the line has a variable name and that it's valid
-     * @param string $sLine The line to check
+     *
+     * @param string   $sLine         The line to check
      * @param int|null $iLineForError If provided, will add an error on invalid variable name characters
+     *
      * @return boolean Returns true if variable name exists and is valid, false otherwise
      */
-    private function hasValidVariableName($sLine, $iLineForError=null) {
+    private function hasValidVariableName($sLine, $iLineForError = null)
+    {
         $sValidCharSet = $this->sVarNameCharSet;
         $sScopeChar = preg_quote($this->sScopeDelimiter, "/");
         $sVarNamePattern = (
@@ -618,7 +682,7 @@ class ConfigFile {
             $bValid = true;
         }
         # don't error for empty line
-        else if ($sVarNameCheck !== "" && $iLineForError !== null) {
+        elseif ($sVarNameCheck !== "" && $iLineForError !== null) {
             $this->addError($iLineForError, "Invalid variable name.");
         }
 
@@ -627,11 +691,14 @@ class ConfigFile {
 
     /**
      * Gets a valid variable name for a line, or false if no valid variable name exists.
-     * @param string $sLine The line to check
+     *
+     * @param string   $sLine         The line to check
      * @param int|null $iLineForError If provided, will add an error on invalid variable name characters
+     *
      * @return string|false The variable name, or false if no valid variable name existed
      */
-    private function getVariableName($sLine, $iLineForError=null) {
+    private function getVariableName($sLine, $iLineForError = null)
+    {
         $sValidVar = false;
         if ($this->hasValidVariableName($sLine, $iLineForError)) {
             $sValidVar = $this->getPreDelimiter($sLine);
@@ -641,14 +708,15 @@ class ConfigFile {
 
     /**
      * Process a line into the store values array.
-     * @param int $iLineNum The line number processing (for use in error reporting)
-     * @param string $sLine The full line from the file to process
+     *
+     * @param int    $iLineNum The line number processing (for use in error reporting)
+     * @param string $sLine    The full line from the file to process
      */
-    private function processLine($iLineNum, $sLine) {
+    private function processLine($iLineNum, $sLine): void
+    {
         if ($this->isValidScopeDefinition($sLine)) {
             $this->setScope($sLine);
-        }
-        else {
+        } else {
             $sVarName = $this->getVariableName($sLine, $iLineNum);
             if ($sVarName !== false) {
                 $sAdjustedName = (
@@ -661,7 +729,7 @@ class ConfigFile {
                     !array_key_exists($sAdjustedName, $this->aValues) ||
                     array_key_exists($sAdjustedName, $this->aPreloaded)
                 ) {
-                    $this->aValues[$sAdjustedName] = array();
+                    $this->aValues[$sAdjustedName] = [];
                     # unmark key as preloaded, if it was set
                     unset($this->aPreloaded[$sAdjustedName]);
                 }
@@ -673,45 +741,51 @@ class ConfigFile {
 
     /**
      * Store an error for retrieval with errors() function.
-     * @param int $iLine The line on which the error occured (0 based count)
+     *
+     * @param int    $iLine    The line on which the error occured (0 based count)
      * @param string $sMessage The error message associated with the line
      */
-    private function addError($iLine, $sMessage) {
+    private function addError($iLine, $sMessage): void
+    {
         $iLine++;   // due to base 0 line indexing
         $this->aErrors[] = "ConfigFile parse error on line {$iLine}: {$sMessage}";
     }
 
     /**
      * Get a list of errors when attempting to load() the file
+     *
      * @return array And array of errors; can be empty if no errors were encountered or the file has not been loaded yet
      */
-    public function errors() {
+    public function errors()
+    {
         return $this->aErrors;
     }
 
     /**
      * Query the config for a scope/variable. Returns the first value or scope on success,
      * or mDefault (default: null) if the query was not found.
-     * @param string $sQuery The query string. e.g. "variable", "scope", "scope.variable", etc
-     * @param mixed $mDefault The return value should the query not find anything.
+     *
+     * @param string $sQuery   The query string. e.g. "variable", "scope", "scope.variable", etc
+     * @param mixed  $mDefault The return value should the query not find anything.
+     *
      * @return string|ConfigFile|null The matching value from the query, or mDefault if not found
      */
-    public function get($sQuery, $mDefault=null) {
+    public function get($sQuery, $mDefault = null)
+    {
         $mVal = $mDefault;
         # try to get value match first
         if (array_key_exists($sQuery, $this->aValues) && count($this->aValues[$sQuery]) > 0) {
             $mVal = $this->aValues[$sQuery][0];
-        }
-        else {
+        } else {
             # check if this matches any scopes
             $sScopeChar = preg_quote($this->sScopeDelimiter, "/");
             $sQueryStr = preg_quote($sQuery, "/");
             # must match a scope exactly ( "my.scope" should not match "my.scopeless" )
             $sScopePattern = "/^{$sQueryStr}{$sScopeChar}(.+)$/";
 
-            $aScopeMatches = array();
-            foreach ($this->aValues as $sName=>$mValue) {
-                if (preg_match($sScopePattern, (string)$sName, $aMatch) === 1) {
+            $aScopeMatches = [];
+            foreach ($this->aValues as $sName => $mValue) {
+                if (preg_match($sScopePattern, (string) $sName, $aMatch) === 1) {
                     $aScopeMatches[$aMatch[1]] = $mValue;
                 }
             }
@@ -726,11 +800,14 @@ class ConfigFile {
     /**
      * Query the config for a variable. Returns all values for the given query as an array.
      * If no value for the query exists, returns an empty array.
+     *
      * @param string $sQuery The query string. e.g. "variable", "scope.variable", etc
+     *
      * @return array And array containing all matching values from the query, or empty array if not found
      */
-    public function getArray($sQuery) {
-        $aVal = array();
+    public function getArray($sQuery)
+    {
+        $aVal = [];
         if (array_key_exists($sQuery, $this->aValues)) {
             $aVal = $this->aValues[$sQuery];
         }
@@ -739,24 +816,31 @@ class ConfigFile {
 
     /**
      * Get all name/value pairs that have been parsed from the file.
+     *
      * @return array An associative array containing name=>value pairs will full scope names.
      */
-    public function getAll() {
+    public function getAll()
+    {
         return $this->aValues;
     }
 
     /**
      * Query to return all available scopes/variables for a given scope level. An empty
      * string (the default) will return top level scopes/variables.
+     *
      * @param string $sQuery A scope level to match, or empty string to query for top level scopes
+     *
      * @return array An array of available scopes/variables for the given scope level
      */
-    public function enumerateScope($sQuery="") {
-        $aScopeValues = array();
+    public function enumerateScope($sQuery = "")
+    {
+        $aScopeValues = [];
         $aAllScopes = array_keys($this->aValues);
-        if ($sQuery !== "") { $sQuery .= "."; }
+        if ($sQuery !== "") {
+            $sQuery .= ".";
+        }
         foreach ($aAllScopes as $sScope) {
-            if ($sQuery === "" || strpos((string)$sScope, $sQuery) === 0) {
+            if ($sQuery === "" || str_starts_with((string) $sScope, $sQuery)) {
                 $sSubScope = substr($sScope, strlen($sQuery));
                 $iScopeEnd = strpos($sSubScope, ".");
                 $sVal = substr($sSubScope, 0);
@@ -769,5 +853,4 @@ class ConfigFile {
         }
         return array_values(array_unique($aScopeValues));
     }
-
 }

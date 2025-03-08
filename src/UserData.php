@@ -90,10 +90,21 @@ $file_array = $udFiles->getFileArray(array());
 
 namespace Nofus;
 
+use function array_key_exists;
+use function floatval;
+use function in_array;
+use function intval;
+use function is_array;
+use function is_float;
+use function is_int;
+use function is_string;
+use function strlen;
+
 /**
  * Handles validation of User/Client Data
  */
-class UserData {
+class UserData
+{
     // Data location
     private $sFieldName;
     private $sMethod;
@@ -113,13 +124,15 @@ class UserData {
     private $aErrors;
 
     /**
-     * UserData 
+     * UserData
+     *
      * @param string $sFieldName The name of the field to parse/validate
-     * @param string $sMethod One of GET,POST,COOKIE,FILES; or ANY, which
-     *          checks the previously mentioned method in the order listed.
+     * @param string $sMethod    One of GET,POST,COOKIE,FILES; or ANY, which
+     *                           checks the previously mentioned method in the order listed.
      */
-    function __construct($sFieldName, $sMethod="ANY") {
-        $this->aErrors = array();
+    public function __construct($sFieldName, $sMethod = "ANY")
+    {
+        $this->aErrors = [];
         $this->sMethod = "NONE";
         $this->sRegExp = null;
         $this->mRangeLow = null;
@@ -133,13 +146,12 @@ class UserData {
 
         if (!is_string($sFieldName)) {
             $this->aErrors[] = "Invalid UserData field name specified; name must be a string.";
-        }
-        else {
+        } else {
             $this->sFieldName = $sFieldName;
         }
 
         $sMethod = strtoupper($sMethod);
-        if ( in_array($sMethod, array('ANY','GET','POST','COOKIE','FILES')) ) {
+        if (in_array($sMethod, ['ANY','GET','POST','COOKIE','FILES'])) {
             $this->sMethod = $sMethod;
         }
 
@@ -147,36 +159,40 @@ class UserData {
 
     /**
      * Static constructor wrapper
+     *
+     * @param mixed $sFieldName
+     * @param mixed $sMethod
      */
-    static public function create($sFieldName, $sMethod="ANY") {
+    public static function create($sFieldName, $sMethod = "ANY")
+    {
         return new UserData($sFieldName, $sMethod);
     }
 
-    /**
-     *
-     */ 
-    public function getErrors() {
+    public function getErrors()
+    {
         return $this->aErrors;
     }
 
     /**
      * Get the appropriate value given the requested method
+     *
      * @return string|null The string value, or null if not found
      */
-    private function getValue() {
+    private function getValue()
+    {
         $mValue = null;
         if ($mValue === null &&
-          in_array($this->sMethod, array('ANY','GET')) &&
+          in_array($this->sMethod, ['ANY','GET']) &&
           array_key_exists($this->sFieldName, $_GET)) {
             $mValue = $_GET[$this->sFieldName];
         }
         if ($mValue === null &&
-          in_array($this->sMethod, array('ANY','POST')) &&
+          in_array($this->sMethod, ['ANY','POST']) &&
           array_key_exists($this->sFieldName, $_POST)) {
             $mValue = $_POST[$this->sFieldName];
         }
         if ($mValue === null &&
-          in_array($this->sMethod, array('ANY','COOKIE')) &&
+          in_array($this->sMethod, ['ANY','COOKIE']) &&
           array_key_exists($this->sFieldName, $_COOKIE)) {
             $mValue = $_COOKIE[$this->sFieldName];
         }
@@ -185,13 +201,16 @@ class UserData {
 
     /**
      * Check if field name was passed, regardless of whether any value was sent
+     *
      * @return bool Returns true if a field with the name was passed
      */
-    public function exists() {
-        return ($this->getValue() !== null);
+    public function exists()
+    {
+        return $this->getValue() !== null;
     }
 
-    public function getStr($mDefault=null) {
+    public function getStr($mDefault = null)
+    {
         $sValue = $this->getValue();
         if (!$this->matchesRegExp($sValue)) {
             $this->aErrors[] = "Value for {$this->sFieldName} does not match required pattern.";
@@ -207,14 +226,16 @@ class UserData {
         return $sValue;
     }
 
-    public function getString($mDefault=null) {
+    public function getString($mDefault = null)
+    {
         return $this->getStr($mDefault);
     }
 
-    public function getInt($mDefault=null) {
+    public function getInt($mDefault = null)
+    {
         $iVal = null;
         $sRaw = $this->getValue();
-        if (ctype_digit($sRaw) || (substr($sRaw,0,1) === '-' && ctype_digit(substr($sRaw,1)))) {
+        if (ctype_digit($sRaw) || (substr($sRaw, 0, 1) === '-' && ctype_digit(substr($sRaw, 1)))) {
             $iVal = intval($sRaw);
         }
 
@@ -229,11 +250,13 @@ class UserData {
         return $iVal;
     }
 
-    public function getInteger($mDefault=null) {
+    public function getInteger($mDefault = null)
+    {
         return $this->getInt($mDefault);
     }
 
-    public function getFloat($mDefault=null) {
+    public function getFloat($mDefault = null)
+    {
         $fVal = null;
         $sRaw = $this->getValue();
         if (is_numeric($sRaw)) {
@@ -251,40 +274,48 @@ class UserData {
         return $fVal;
     }
 
-    public function getDouble($mDefault=null) {
+    public function getDouble($mDefault = null)
+    {
         return $this->getFloat($mDefault);
     }
 
     /**
      * Attempt to get a boolean value from the data
      * If the string is a '1' or 'true' (case-insensitive), returns true
+     *
      * @param mixed $mDefault
+     *
      * @return bool|null Returns true or false based on the parsed value, or null if field name does not exist
      */
-    public function getBool($mDefault=null) {
+    public function getBool($mDefault = null)
+    {
         $bVal = $mDefault;
         $sVal = $this->getValue();
         if ($sVal !== null) {
             $bVal = false;
-            if (in_array(strtolower($sVal), array('1','true'))) {
+            if (in_array(strtolower($sVal), ['1','true'])) {
                 $bVal = true;
             }
         }
         return $bVal;
     }
 
-    public function getBoolean($mDefault=null) {
+    public function getBoolean($mDefault = null)
+    {
         return $this->getBool($mDefault);
     }
 
     /**
      * Get an array of string values
+     *
      * @param mixed $mDefault The default value to assign to each value that doesn't match all filters
+     *
      * @return array
      */
-    public function getStrArray($mDefault=null) {
+    public function getStrArray($mDefault = null)
+    {
         $aValues = $this->getValue();
-        $aReturn = array();
+        $aReturn = [];
         if (is_array($aValues)) {
             foreach ($aValues as $sValue) {
                 if (!$this->matchesRegExp($sValue)) {
@@ -304,22 +335,27 @@ class UserData {
         return $aReturn;
     }
 
-    public function getStringArray($mDefault=null) {
+    public function getStringArray($mDefault = null)
+    {
         return $this->getStrArray($mDefault);
     }
 
-    public function getArray($mDefault=null) {
+    public function getArray($mDefault = null)
+    {
         return $this->getStrArray($mDefault);
     }
 
     /**
      * Get an array of integer values
+     *
      * @param mixed $mDefault The default value to assign to each value that doesn't match all filters
+     *
      * @return array
      */
-    public function getIntArray($mDefault=null) {
+    public function getIntArray($mDefault = null)
+    {
         $aValues = $this->getValue();
-        $aReturn = array();
+        $aReturn = [];
         if (is_array($aValues)) {
             foreach ($aValues as $sValue) {
                 $iVal = null;
@@ -343,19 +379,25 @@ class UserData {
 
     /**
      * Alias to getIntArray function
+     *
+     * @param null|mixed $mDefault
      */
-    public function getIntegerArray($mDefault=null) {
+    public function getIntegerArray($mDefault = null)
+    {
         return $this->getIntArray($mDefault);
     }
 
     /**
      * Get an array of float values
+     *
      * @param mixed $mDefault The default value to assign to each value that doesn't match all filters
+     *
      * @return array
      */
-    public function getFloatArray($mDefault=null) {
+    public function getFloatArray($mDefault = null)
+    {
         $aValues = $this->getValue();
-        $aReturn = array();
+        $aReturn = [];
         if (is_array($aValues)) {
             foreach ($aValues as $sValue) {
                 $iVal = null;
@@ -379,25 +421,31 @@ class UserData {
 
     /**
      * Alias to getFloatArray function
+     *
+     * @param null|mixed $mDefault
      */
-    public function getDoubleArray($mDefault=null) {
+    public function getDoubleArray($mDefault = null)
+    {
         return $this->getFloatArray($mDefault);
     }
 
     /**
      * Get an array of boolean values
+     *
      * @param mixed $mDefault The default value to assign to each value that doesn't match all filters
+     *
      * @return array
      */
-    public function getBoolArray($mDefault=null) {
+    public function getBoolArray($mDefault = null)
+    {
         $aValues = $this->getValue();
-        $aReturn = array();
+        $aReturn = [];
         if (is_array($aValues)) {
             foreach ($aValues as $sValue) {
                 $bVal = null;
                 if ($sValue !== null) {
                     $bVal = false;
-                    if (in_array(strtolower($sValue), array('1','true'))) {
+                    if (in_array(strtolower($sValue), ['1','true'])) {
                         $bVal = true;
                     }
                 }
@@ -413,23 +461,29 @@ class UserData {
 
     /**
      * Alias to getBoolArray function
+     *
+     * @param null|mixed $mDefault
      */
-    public function getBooleanArray($mDefault=null) {
+    public function getBooleanArray($mDefault = null)
+    {
         return $this->getBoolArray($mDefault);
     }
 
     /**
      * Get information about a single uploaded file
+     *
      * @param mixed $mDefault Return this value if no matching value was found
+     *
      * @return array A file array with keys (or mDefault if field was not found):
-     *      name    => The original name of the uploaded file
-     *      type    => The mime type of the file (can be falsified by client)
-     *      size    => The size of the uploaded file
-     *      tmp_name=> The file location and name as it exists on the server
-     *      error   => An error code if there was a problem with the upload (0 means no error)
-     *                 See http://php.net/manual/en/features.file-upload.errors.php
+     *               name    => The original name of the uploaded file
+     *               type    => The mime type of the file (can be falsified by client)
+     *               size    => The size of the uploaded file
+     *               tmp_name=> The file location and name as it exists on the server
+     *               error   => An error code if there was a problem with the upload (0 means no error)
+     *               See http://php.net/manual/en/features.file-upload.errors.php
      */
-    public function getFile($mDefault=null) {
+    public function getFile($mDefault = null)
+    {
         $aFile = $mDefault;
         if (array_key_exists($this->sFieldName, $_FILES)) {
             $aFile = $_FILES[$this->sFieldName];
@@ -439,51 +493,59 @@ class UserData {
 
     /**
      * Get information about one or more uploaded files
+     *
      * @param mixed $mDefault Return this value if no matching value was found
+     *
      * @return array An array of file arrays, see return of getFile() for contents of a file array
      */
-    public function getFileArray($mDefault=null) {
+    public function getFileArray($mDefault = null)
+    {
         $aFiles = $mDefault;
         if (array_key_exists($this->sFieldName, $_FILES) && is_array($_FILES[$this->sFieldName]['name'])) {
-            $aFiles = array();
+            $aFiles = [];
             $aFileKeys = array_keys($_FILES[$this->sFieldName]['name']);
             foreach ($aFileKeys as $iFileId) {
-                $aFiles[] = array(
-                    'name'=>$_FILES[$this->sFieldName]['name'][$iFileId],
-                    'type'=>$_FILES[$this->sFieldName]['type'][$iFileId],
-                    'size'=>$_FILES[$this->sFieldName]['size'][$iFileId],
-                    'tmp_name'=>$_FILES[$this->sFieldName]['tmp_name'][$iFileId],
-                    'error'=>$_FILES[$this->sFieldName]['error'][$iFileId]
-                );
+                $aFiles[] = [
+                    'name' => $_FILES[$this->sFieldName]['name'][$iFileId],
+                    'type' => $_FILES[$this->sFieldName]['type'][$iFileId],
+                    'size' => $_FILES[$this->sFieldName]['size'][$iFileId],
+                    'tmp_name' => $_FILES[$this->sFieldName]['tmp_name'][$iFileId],
+                    'error' => $_FILES[$this->sFieldName]['error'][$iFileId],
+                ];
             }
         }
         return $aFiles;
     }
 
-    public function filterRegExp($sRegExp) {
+    public function filterRegExp($sRegExp): void
+    {
         $this->sRegExp = $sRegExp;
     }
 
-    private function matchesRegExp($mValue) {
+    private function matchesRegExp($mValue)
+    {
         return $this->sRegExp === null || (is_string($mValue) && is_string($this->sRegExp) && preg_match($this->sRegExp, $mValue) === 1);
     }
 
     /**
      * Filter the value to be between two numbers (inclusive).
      * To NOT filter one of the numbers (minimum or maximum), set it to null
-     * @param mixed $mLow The minimum allowed value; integer, float, or null
-     * @param mixed $mHigh The maximum allowed value; integer, float, or null
-     * @param bool $bLimit If set to true and the value is of an valid type,
-     *          this will restrict values to be within the range rather than
-     *          cause a 'default' return value.
+     *
+     * @param mixed $mLow   The minimum allowed value; integer, float, or null
+     * @param mixed $mHigh  The maximum allowed value; integer, float, or null
+     * @param bool  $bLimit If set to true and the value is of an valid type,
+     *                      this will restrict values to be within the range rather than
+     *                      cause a 'default' return value.
      */
-    public function filterRange($mLow, $mHigh, $bLimit=false) {
+    public function filterRange($mLow, $mHigh, $bLimit = false): void
+    {
         $this->mRangeLow = $mLow;
         $this->mRangeHigh = $mHigh;
         $this->bRangeLimit = $bLimit;
     }
 
-    private function applyRange($mValue, $mDefault) {
+    private function applyRange($mValue, $mDefault)
+    {
         $bValidType = false;
         if (is_int($mValue)) {
             $mLow = intval($this->mRangeLow);
@@ -499,16 +561,14 @@ class UserData {
             if ($this->mRangeLow !== null) {
                 if ($this->bRangeLimit != true && $mValue < $mLow) {
                     $mValue = $mDefault;
-                }
-                else {
+                } else {
                     $mValue = max($mValue, $mLow);
                 }
             }
             if ($this->mRangeHigh !== null) {
                 if ($this->bRangeLimit != true && $mValue > $mHigh) {
                     $mValue = $mDefault;
-                }
-                else {
+                } else {
                     $mValue = min($mValue, $mHigh);
                 }
             }
@@ -519,11 +579,15 @@ class UserData {
     /**
      * Filter the length of string values; optionally truncates if too long
      * To NOT have a maximum value, set iMax to null
-     * @param int $mLow The minimum length of a string
-     * @param int|null $mHigh The maximum length of a string; set to null to not have a maximum
-     * @param bool $bTruncate If set to true, will truncate string if over iMax with no error
+     *
+     * @param int      $mLow      The minimum length of a string
+     * @param int|null $mHigh     The maximum length of a string; set to null to not have a maximum
+     * @param bool     $bTruncate If set to true, will truncate string if over iMax with no error
+     * @param mixed    $iMin
+     * @param mixed    $iMax
      */
-    public function filterLength($iMin, $iMax, $bTruncate=false) {
+    public function filterLength($iMin, $iMax, $bTruncate = false): void
+    {
         $this->iLengthMin = $iMin;
         $this->iLengthMax = $iMax;
         $this->bTruncateLength = $bTruncate;
@@ -531,24 +595,24 @@ class UserData {
 
     /**
      * Apply the length filter to a string input
+     *
      * @param string $sValue The string value to apply length limits to
+     *
      * @return string|null The proper length value, or null if an invalid length or input was not a string
      */
-    private function applyLength($sValue) {
+    private function applyLength($sValue)
+    {
         $mReturn = null;
         if (is_string($sValue)) {
             if (strlen($sValue) < $this->iLengthMin) {
                 $this->aErrors[] = "Value is shorter than the minimum length.";
-            }
-            elseif ($this->iLengthMax !== null && strlen($sValue) > $this->iLengthMax) {
+            } elseif ($this->iLengthMax !== null && strlen($sValue) > $this->iLengthMax) {
                 if ($this->bTruncateLength) {
                     $mReturn = substr($sValue, 0, $this->iLengthMax);
-                }
-                else {
+                } else {
                     $this->aErrors[] = "Value is longer than the maximum length.";
                 }
-            }
-            else {
+            } else {
                 $mReturn = $sValue;
             }
         }
@@ -557,21 +621,26 @@ class UserData {
 
     /**
      * Filter to only allow specific values
+     *
      * @param mixed $aAllowed An array of allowed values, or a single allowed value
-     * @param bool $bStrict If set to true, will enforce type checks (see in_array())
+     * @param bool  $bStrict  If set to true, will enforce type checks (see in_array())
      */
-    public function filterAllowed($aAllowed, $bStrict=false) {
+    public function filterAllowed($aAllowed, $bStrict = false): void
+    {
         // Put single value into an array
         if (!is_array($aAllowed)) {
-            $aAllowed = array($aAllowed);
+            $aAllowed = [$aAllowed];
         }
         $this->aAllowed = $aAllowed;
         $this->bAllowedStrict = $bStrict;
     }
 
-    private function isAllowed($mValue) {
+    private function isAllowed($mValue)
+    {
         // Allow all if no limits were set
-        if ($this->aAllowed === null) { return true; }
+        if ($this->aAllowed === null) {
+            return true;
+        }
         return in_array($mValue, $this->aAllowed, $this->bAllowedStrict);
     }
 }
