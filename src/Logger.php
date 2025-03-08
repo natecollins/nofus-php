@@ -1,4 +1,6 @@
 <?php
+declare(strict_types=1);
+
 /****************************************************************************************
 
 Copyright 2016 Nathan Collins. All rights reserved.
@@ -69,9 +71,6 @@ catch (DivisionByZeroError $exc) {
 */
 
 namespace Nofus;
-# Include guard, for people who can't remember to use '_once'
-if (!defined('__NOFUS_LOGGER_GUARD__')) {
-    define('__NOFUS_LOGGER_GUARD__',true);
 
 /**
  * Interface required by Logger instance
@@ -113,7 +112,7 @@ class Logger implements LoggingInterface {
 
     /**
      * Register a custom logger instead of using the built-in one
-     * @param oLogger An instance of a class that implements LoggingInterface
+     * @param object $oLogger An instance of a class that implements LoggingInterface
      */
     static public function register($oLogger) {
         if (!in_array('Nofus\LoggingInterface', class_implements($oLogger))) {
@@ -177,7 +176,7 @@ class Logger implements LoggingInterface {
 
     /**
      * Check if logging is enabled for a given log level
-     * @param int iLogLevel The level to check
+     * @param int $iLogLevel The level to check
      * @return bool|null True if logging is enabled for level, or null if iLogLevel is not defined
      */
     static public function isEnabled($iLogLevel) {
@@ -213,7 +212,3 @@ class Logger implements LoggingInterface {
         self::processLog($sEntry, self::LOG_TRACE, $oExc);
     }
 }
-
-} // Include guard end
-
-?>

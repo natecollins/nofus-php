@@ -100,4 +100,3 @@ final class DBConnectTest extends TestCase {
         $row = $db->queryRow("SELECT * FROM table2 WHERE blag = 3");
     }
 }
-

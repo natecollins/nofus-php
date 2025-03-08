@@ -2,3 +2,4 @@ vendor/
 composer.json
 ~*
 *.swp
+.php-cs-code.cache

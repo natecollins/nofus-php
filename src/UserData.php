@@ -1,4 +1,6 @@
 <?php
+declare(strict_types=1);
+
 /****************************************************************************************
 
 Copyright 2016 Nathan Collins. All rights reserved.
@@ -87,9 +89,6 @@ $file_array = $udFiles->getFileArray(array());
 */
 
 namespace Nofus;
-# Include guard, for people who can't remember to use '_once'
-if (!defined('__NOFUS_USERDATA_GUARD__')) {
-    define('__NOFUS_USERDATA_GUARD__',true);
 
 /**
  * Handles validation of User/Client Data
@@ -115,8 +114,8 @@ class UserData {
 
     /**
      * UserData 
-     * @param string sFieldName The name of the field to parse/validate
-     * @param string sMethod One of GET,POST,COOKIE,FILES; or ANY, which
+     * @param string $sFieldName The name of the field to parse/validate
+     * @param string $sMethod One of GET,POST,COOKIE,FILES; or ANY, which
      *          checks the previously mentioned method in the order listed.
      */
     function __construct($sFieldName, $sMethod="ANY") {
@@ -259,7 +258,7 @@ class UserData {
     /**
      * Attempt to get a boolean value from the data
      * If the string is a '1' or 'true' (case-insensitive), returns true
-     * @param mixed mDefault
+     * @param mixed $mDefault
      * @return bool|null Returns true or false based on the parsed value, or null if field name does not exist
      */
     public function getBool($mDefault=null) {
@@ -280,7 +279,7 @@ class UserData {
 
     /**
      * Get an array of string values
-     * @param mixed mDefault The default value to assign to each value that doesn't match all filters
+     * @param mixed $mDefault The default value to assign to each value that doesn't match all filters
      * @return array
      */
     public function getStrArray($mDefault=null) {
@@ -315,7 +314,7 @@ class UserData {
 
     /**
      * Get an array of integer values
-     * @param mixed mDefault The default value to assign to each value that doesn't match all filters
+     * @param mixed $mDefault The default value to assign to each value that doesn't match all filters
      * @return array
      */
     public function getIntArray($mDefault=null) {
@@ -351,7 +350,7 @@ class UserData {
 
     /**
      * Get an array of float values
-     * @param mixed mDefault The default value to assign to each value that doesn't match all filters
+     * @param mixed $mDefault The default value to assign to each value that doesn't match all filters
      * @return array
      */
     public function getFloatArray($mDefault=null) {
@@ -387,7 +386,7 @@ class UserData {
 
     /**
      * Get an array of boolean values
-     * @param mixed mDefault The default value to assign to each value that doesn't match all filters
+     * @param mixed $mDefault The default value to assign to each value that doesn't match all filters
      * @return array
      */
     public function getBoolArray($mDefault=null) {
@@ -421,7 +420,7 @@ class UserData {
 
     /**
      * Get information about a single uploaded file
-     * @param mixed mDefault Return this value if no matching value was found
+     * @param mixed $mDefault Return this value if no matching value was found
      * @return array A file array with keys (or mDefault if field was not found):
      *      name    => The original name of the uploaded file
      *      type    => The mime type of the file (can be falsified by client)
@@ -440,7 +439,7 @@ class UserData {
 
     /**
      * Get information about one or more uploaded files
-     * @param mixed mDefault Return this value if no matching value was found
+     * @param mixed $mDefault Return this value if no matching value was found
      * @return array An array of file arrays, see return of getFile() for contents of a file array
      */
     public function getFileArray($mDefault=null) {
@@ -472,9 +471,9 @@ class UserData {
     /**
      * Filter the value to be between two numbers (inclusive).
      * To NOT filter one of the numbers (minimum or maximum), set it to null
-     * @param mixed mLow The minimum allowed value; integer, float, or null
-     * @param mixed mHigh The maximum allowed value; integer, float, or null
-     * @param bool bLimit If set to true and the value is of an valid type,
+     * @param mixed $mLow The minimum allowed value; integer, float, or null
+     * @param mixed $mHigh The maximum allowed value; integer, float, or null
+     * @param bool $bLimit If set to true and the value is of an valid type,
      *          this will restrict values to be within the range rather than
      *          cause a 'default' return value.
      */
@@ -520,9 +519,9 @@ class UserData {
     /**
      * Filter the length of string values; optionally truncates if too long
      * To NOT have a maximum value, set iMax to null
-     * @param int mLow The minimum length of a string
-     * @param int|null mHigh The maximum length of a string; set to null to not have a maximum
-     * @param bool bTruncate If set to true, will truncate string if over iMax with no error
+     * @param int $mLow The minimum length of a string
+     * @param int|null $mHigh The maximum length of a string; set to null to not have a maximum
+     * @param bool $bTruncate If set to true, will truncate string if over iMax with no error
      */
     public function filterLength($iMin, $iMax, $bTruncate=false) {
         $this->iLengthMin = $iMin;
@@ -532,7 +531,7 @@ class UserData {
 
     /**
      * Apply the length filter to a string input
-     * @param string sValue The string value to apply length limits to
+     * @param string $sValue The string value to apply length limits to
      * @return string|null The proper length value, or null if an invalid length or input was not a string
      */
     private function applyLength($sValue) {
@@ -558,8 +557,8 @@ class UserData {
 
     /**
      * Filter to only allow specific values
-     * @param mixed aAllowed An array of allowed values, or a single allowed value
-     * @param bool bStrict If set to true, will enforce type checks (see in_array())
+     * @param mixed $aAllowed An array of allowed values, or a single allowed value
+     * @param bool $bStrict If set to true, will enforce type checks (see in_array())
      */
     public function filterAllowed($aAllowed, $bStrict=false) {
         // Put single value into an array
@@ -576,7 +575,3 @@ class UserData {
         return in_array($mValue, $this->aAllowed, $this->bAllowedStrict);
     }
 }
-
-} // Include guard end
-
-?>
