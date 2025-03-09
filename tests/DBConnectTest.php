@@ -23,13 +23,16 @@ final class DBConnectTest extends TestCase {
     public function testNoConnInfo(): void {
         $this->expectException(DBException::class);
         $this->expectExceptionMessage("No DB valid server authentication provided.");
-        $db = new DBConnect([], true);
+        $db = new DBConnect(null, true);
+        $db->handleErrorsWith(true, false);
+        $db->setConnectionInfo([]);
     }
 
     public function testBadConnInfo(): void {
         $dba = dbauth();
         $dba[0]['database'] = 'invalid_db_name';
         $db = new DBConnect($dba, true);
+        $db->handleErrorsWith(true, false);
         $this->expectException(DBException::class);
         $this->expectExceptionMessage("Unable to connect to database.");
         $this->assertEquals('nofus_test', $db->getDatabaseName());
@@ -93,6 +96,7 @@ final class DBConnectTest extends TestCase {
 
     public function testBadQueries(): void {
         $db = new DBConnect(dbauth(), true);
+        $db->handleErrorsWith(true, false);
 
         $this->expectException(DBException::class);
         $this->expectExceptionMessage("SQL could not prepare query; it is not valid");

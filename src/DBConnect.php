@@ -137,7 +137,7 @@ class DBConnect
      * @param array $aConnInfo An array containing a list of servers' connection information
      * @param bool  $bDebug    Flag to set debug mode
      */
-    public function __construct($aConnInfo, $bDebug = false)
+    public function __construct(?array $aConnInfo = null, bool $bDebug = false)
     {
         $this->aServers = [];
         $this->iServerIndex = null;
@@ -158,6 +158,19 @@ class DBConnect
         $this->setPDOAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
         $this->setPDOAttribute(\PDO::MYSQL_ATTR_INIT_COMMAND, "SET NAMES utf8mb4");
 
+        if ($aConnInfo) {
+            $this->setConnectionInfo($aConnInfo);
+        }
+    }
+
+    /**
+     * Set connection information to the database
+     *
+     * @param array $aConnInfo An array containing a list of servers' connection information
+     *
+     * @return bool True if connection info validated
+     */
+    public function setConnectionInfo($aConnInfo): bool {
         # detect single server and wrap it
         if (is_array($aConnInfo) && array_key_exists('host', $aConnInfo)) {
             $aConnInfo = [$aConnInfo];
@@ -185,12 +198,13 @@ class DBConnect
         if (count($this->aServers) < 1) {
             return $this->triggerError("No DB valid server authentication provided.");
         }
+        return true;
     }
 
     /**
-     * Set (or unset) the query log and whether or not additional debugging info will be displayed on errors.
+     * Set/unset the query log and whether additional debug info will be displayed on errors.
      *
-     * @param bool $bAutoDump Will enable auto dumping debug info to output if true, or disable on false
+     * @param bool $bAutoDump Will enable auto dumping debug info to output if true
      */
     public function enableDebugInfo($bAutoDump = true): void
     {
@@ -667,6 +681,7 @@ class DBConnect
             return false;
         }
         # catch timed out connections and attempt to reconnect
+        $exc = null;
         try {
             $oStatement = $this->cInstance->prepare($sQuery);
         } catch (PDOException $exc) {
@@ -681,7 +696,7 @@ class DBConnect
             }
         }
         if ($oStatement == false) {
-            return $this->triggerErrorDump("SQL could not prepare query; it is not valid or references something non-existant." . PHP_EOL . $sQuery);
+            return $this->triggerErrorDump("SQL could not prepare query; it is not valid or references something non-existant." . PHP_EOL . $sQuery, $exc);
         }
 
         return [$oStatement,$bIsInsert,$bIsUpdateDelete];
